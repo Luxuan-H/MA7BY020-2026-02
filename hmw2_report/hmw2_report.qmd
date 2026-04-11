@@ -1,0 +1,93 @@
+---
+title: "hmw2_report"
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+```{r}
+#--- list of datasets and download ----------------------------------------------
+# from hub.huwise.com (new name of opendatasoft)
+
+
+if (!dir.exists("data_raw")) dir.create("data_raw")
+
+download_if_not_local <- function(url, dest) {
+  dest_path <- file.path("data_raw", dest)
+  if (!file.exists(dest_path)) {
+    message("Downloading ", dest)
+    download.file(url, dest_path, mode = "wb")
+  } else {
+    message(dest, " already exists, skipping.")
+  }
+}
+
+
+files <- list(
+  # Parlement européen, 2014
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/resultats-des-elections-europeennes-2014/exports/parquet/?lang=en&offset=0&where=nom_de_la_commune%3D%22Lyon%22",
+    dest = "lyon_europe2014.parquet"
+  ),
+  
+  # Présidentielles, 2017, 1st round
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/election-presidentielle-2017-resultats-par-bureaux-de-vote-tour-1/exports/parquet/?lang=en&offset=0&where=libelle_de_la_commune%3D%22Lyon%22",
+    dest = "lyon_pres2017_r1.parquet"
+  ),
+  
+  # Présidentielles, 2017, 2nd round
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/election-presidentielle-2017-resultats-par-bureaux-de-vote-tour-2/exports/parquet/?lang=en&offset=0&where=libelle_de_la_commune%3D%22Lyon%22",
+    dest = "lyon_pres2017_r2.parquet"
+  ),
+  
+  # Législatives, 2017, 1st
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/elections-legislatives-2017-resultats-par-bureaux-de-vote-tour-1/exports/parquet/?lang=en&offset=0&where=libelle_de_la_commune%3D%22Lyon%22",
+    dest = "lyon_leg2017_r1.parquet"
+  ),
+  
+  # Législatives, 2017, 2nd
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/resultats-elections-legislatives-france-2017-tour-2/exports/parquet/?lang=en&offset=0&where=libsubcom%3D%22Lyon%22",
+    dest = "lyon_leg2017_r2.parquet"
+  ),
+  
+  # Municipales, 2020, 1st
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/election-france-municipale-2020-premier-tour/exports/parquet/?lang=en&offset=0&where=com_name%3D%22Lyon%22",
+    dest = "lyon_mun2020_r1.parquet"
+  ),
+  
+  # Municipales, 2020, 2nd
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/election-france-municipale-2020-deuxieme-tour/exports/parquet/?lang=en&offset=0&where=com_name%3D%22Lyon%22",
+    dest = "lyon_mun2020_r2.parquet"
+  ),
+  
+  # Présidentielles, 2022, 1st
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/elections-france-presidentielles-2022-1er-tour-par-bureau-de-vote/exports/parquet/?lang=en&offset=0&where=com_name%3D%22Lyon%22",
+    dest = "lyon_pres2022_r1.parquet"
+  ),
+  
+  # Présidentielles, 2022, 2nd
+  list(
+    url = "https://hub.huwise.com/api/explore/v2.1/catalog/datasets/elections-france-presidentielles-2022-2nd-tour-par-bureau-de-vote/exports/parquet/?lang=en&offset=0&where=com_name%3D%22Lyon%22",
+    dest = "lyon_pres2022_r2.parquet"
+  )
+)
+
+# download
+for (f in files) {
+  download_if_not_local(f$url, f$dest)
+}
+
+message("All files have been processed (downloaded or already existed).")
+```
+
+## 
