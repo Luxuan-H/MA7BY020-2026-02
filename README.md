@@ -1,2 +1,5 @@
 # MA7BY020-2026-02
-SVD methods and Elections Data
+Analyse exploratoire des données
+Homework II:SVD methods and Elections Data
+
+Luxuan HUANG (22503755)
