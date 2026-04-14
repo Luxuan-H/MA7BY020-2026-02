@@ -9,9 +9,16 @@ Quarto enables you to weave together content and executable code into a finished
 ## Running Code
 
 ```{r}
-#--- list of datasets and download ----------------------------------------------
-# from hub.huwise.com (new name of opendatasoft)
 
+library(stringi)
+library(dplyr)
+library(stringr)
+library(arrow)
+
+# ===================
+#list of datasets and download 
+# from hub.huwise.com (new name of opendatasoft)
+# ===================
 
 if (!dir.exists("data_raw")) dir.create("data_raw")
 
@@ -87,7 +94,102 @@ for (f in files) {
   download_if_not_local(f$url, f$dest)
 }
 
-message("All files have been processed (downloaded or already existed).")
+message("All files have been downloaded.")
+
+# ===================
+# data loading
+# ===================
+europe2014 = arrow::read_parquet("data_raw/lyon_europe2014.parquet")
+pres2017_r1 = arrow::read_parquet("data_raw/lyon_pres2017_r1.parquet")
+pres2017_r2 = arrow::read_parquet("data_raw/lyon_pres2017_r2.parquet")
+leg2017_r1 = arrow::read_parquet("data_raw/lyon_leg2017_r1.parquet")
+leg2017_r2 = arrow::read_parquet("data_raw/lyon_leg2017_r2.parquet")
+mun2020_r1 = arrow::read_parquet("data_raw/lyon_mun2020_r1.parquet")
+mun2020_r2 = arrow::read_parquet("data_raw/lyon_mun2020_r2.parquet")
+pres2022_r1 = arrow::read_parquet("data_raw/lyon_pres2022_r1.parquet")
+pres2022_r2 = arrow::read_parquet("data_raw/lyon_pres2022_r2.parquet")
+
+# ===================
+# clean_data
+# ===================
+
+# Function to cleanup party names (lowercase, no accents, and cut to 20 characters)
+get_votes_by_cleaned_list <- function(df) { 
+  df |> 
+    dplyr::mutate(liste=tolower(list)) |>
+    dplyr::mutate(liste=stringr::str_trunc(liste, 20)) |>
+    dplyr::mutate(liste=stringi::stri_trans_general(liste, id="Latin-ASCII")) |> dplyr::group_by(liste) |>
+    dplyr::summarise(votes=sum(vote)) }
+
+
+ # two round data of Municipales 2020
+listes_mun2020_r1 <- get_votes_by_cleaned_list(mun2020_r1)
+listes_mun2020_r1
+
+listes_mun2020_r2 <- get_votes_by_cleaned_list(mun2020_r2)
+listes_mun2020_r2
+
+
+#LR <- list("bleu blanc lyon e...")
+#DVG <- list ("droit de cite", "lyon 100% social")
+#LO <- list ("lutte ouvriere - ...")
+#LFI <- list ("lyon en commun")
+#EELV <- list ("maintenant lyon p...")
+#LC <- list ("positivons lyon a...", "positivons lyon-1...")
+#RN <- list ("pour l'amour de lyon")
+#LREM <- list ("respirations avec...", "un temps d'avance...")
+#PS <- list ("vivons vraiment l...")
+#UPR <- list ("vos idees en lumiere")
+
+# https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)
+
+extreme_gauche <- character(0)  # 
+gauche         <- character(0)  # 
+centre         <- character(0)  # 
+droite         <- character(0)  # 
+extreme_droite <- character(0)
+
+#Municipales 2020 - 1st round
+droite <- c(droite, "bleu blanc lyon e...") 
+gauche<- c(gauche, "droit de cite", "lyon 100% social") 
+extreme_gauche <- c(extreme_gauche, "lutte ouvriere - ...")
+gauche <- c(gauche,  "lyon en commun") 
+gauche  <- c(gauche,   "maintenant lyon p...")
+centre  <- c(centre, "positivons lyon a...", "positivons lyon-1...")  
+extreme_droite <- c(extreme_droite, "pour l'amour de lyon")
+centre  <- c(centre, "respirations avec...", "un temps d'avance...") 
+gauche  <- c(gauche, "vivons vraiment l...")
+droite  <- c(droite,  "vos idees en lumiere")
+
+# #Municipales 2020 - 2nd round
+gauche <- c(gauche, "ensemble, l'ecolo...") 
+droite <- c(droite, "lyon, la force du...") 
+
+
+# Parlement européen, 2014
+
+#  https://fr.wikipedia.org/wiki/%C3%89lections_europ%C3%A9ennes_de_2014_en_France#Sud-Est_2
+
+candidats = europe2014 |> dplyr::group_by(candidat) |> dplyr::summarise(votes=sum(nombre_de_voix_du_candidat)) |> dplyr::arrange(desc(votes))
+candidats
+
+# 
+droite  <- c(droite, "Renaud MUSELIER")
+gauche   <- c(gauche, "Vincent PEILLON")
+extreme_droite <- c(extreme_droite, "Jean-Marie LE PEN")  
+centre  <- c(centre, "Sylvie GOULARD")     
+extreme_gauche <- c(extreme_gauche, "Marie-Christine VERGIAT") 
+gauche  <- c(gauche, "Jean-Baptiste")
+extreme_droite <- c(extreme_droite, "Gerbert RAMBAUD")    
+droite <- c(droite,  "Bertrand LESCURE") 
+gauche <- c(gauche, "Valerie MIRA") 
+
+cat("extreme_gauche:\n"); print(extreme_gauche)
+cat("gauche:\n"); print(gauche)
+cat("centre:\n"); print(centre)
+cat("droite:\n"); print(droite)
+cat("extreme_droite:\n"); print(extreme_droite)
+
 ```
 
 ## 
