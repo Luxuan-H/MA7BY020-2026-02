@@ -259,18 +259,175 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="co"># clean_data</span></span>
 <span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="co"># ===================</span></span>
 <span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to cleanup party names (lowercase, no accents, and cut to 20 characters)</span></span>
-<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>get_votes_by_cleaned_list <span class="ot">&lt;-</span> <span class="cf">function</span>(df) { </span>
-<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>  df <span class="sc">|&gt;</span> </span>
-<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">liste=</span><span class="fu">tolower</span>(list)) <span class="sc">|&gt;</span></span>
-<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">liste=</span>stringr<span class="sc">::</span><span class="fu">str_trunc</span>(liste, <span class="dv">20</span>)) <span class="sc">|&gt;</span></span>
-<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">liste=</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(liste, <span class="at">id=</span><span class="st">"Latin-ASCII"</span>)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(liste) <span class="sc">|&gt;</span></span>
-<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">votes=</span><span class="fu">sum</span>(vote)) }</span>
-<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a> <span class="co"># two round data of Municipales 2020</span></span>
-<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r1 <span class="ot">&lt;-</span> <span class="fu">get_votes_by_cleaned_list</span>(mun2020_r1)</span>
-<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="co"># Parlement européen, 2014</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a><span class="co">#  https://fr.wikipedia.org/wiki/%C3%89lections_europ%C3%A9ennes_de_2014_en_France#Sud-Est_2</span></span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>partis <span class="ot">=</span> europe2014 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(code_nuance_du_candidat) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">votes=</span><span class="fu">sum</span>(nombre_de_voix_du_candidat)) </span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>partis</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 10 × 2
+   code_nuance_du_candidat votes
+   &lt;chr&gt;                   &lt;int&gt;
+ 1 LDIV                     4309
+ 2 LDVD                     8021
+ 3 LDVG                     5515
+ 4 LEXG                      918
+ 5 LFG                      7299
+ 6 LFN                     17016
+ 7 LUC                     14890
+ 8 LUG                     21731
+ 9 LUMP                    28777
+10 LVEC                    16635</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>candidats <span class="ot">=</span> europe2014 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(candidat, code_nuance_du_candidat) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">votes=</span><span class="fu">sum</span>(nombre_de_voix_du_candidat)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">arrange</span>(<span class="fu">desc</span>(votes))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>`summarise()` has regrouped the output.
+ℹ Summaries were computed grouped by candidat and code_nuance_du_candidat.
+ℹ Output is grouped by candidat.
+ℹ Use `summarise(.groups = "drop_last")` to silence this message.
+ℹ Use `summarise(.by = c(candidat, code_nuance_du_candidat))` for per-operation
+  grouping (`?dplyr::dplyr_by`) instead.</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>candidats</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 23 × 3
+# Groups:   candidat [23]
+   candidat                code_nuance_du_candidat votes
+   &lt;chr&gt;                   &lt;chr&gt;                   &lt;int&gt;
+ 1 Renaud MUSELIER         LUMP                    28777
+ 2 Vincent PEILLON         LUG                     21731
+ 3 Jean-Marie LE PEN       LFN                     17016
+ 4 Michèle RIVASI          LVEC                    16635
+ 5 Sylvie GOULARD          LUC                     14890
+ 6 Marie-Christine VERGIAT LFG                      7299
+ 7 Jean-Baptiste COUTELIS  LDVG                     5515
+ 8 Gerbert RAMBAUD         LDVD                     3620
+ 9 Bertrand LESCURE        LDVD                     3584
+10 Valérie MIRA            LDIV                     2296
+# ℹ 13 more rows</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>replace_nuance <span class="ot">&lt;-</span> <span class="cf">function</span>(df, nuances_mapping) {</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (nuance_i <span class="cf">in</span> <span class="fu">seq_along</span>(nuances_mapping)) {</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (liste_noms <span class="cf">in</span> nuances_mapping[nuance_i]) {</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> (nom <span class="cf">in</span> liste_noms) {</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>        df[df<span class="sc">==</span>nom] <span class="ot">&lt;-</span> <span class="fu">names</span>(nuances_mapping)[nuance_i]</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>  df</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a>nuances_mapping <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">extreme_gauche =</span> <span class="fu">list</span>(<span class="st">"LEXG"</span>, <span class="st">"LFG"</span>),</span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">gauche =</span> <span class="fu">list</span>(<span class="st">"LDVG"</span>, <span class="st">"LUG"</span>, <span class="st">"LVEC"</span>),</span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">centre =</span> <span class="fu">list</span>(<span class="st">"LUC"</span>),</span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">droite =</span> <span class="fu">list</span>(<span class="st">"LDVD"</span>, <span class="st">"LUMP"</span>),</span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">extreme_droite =</span> <span class="fu">list</span>(<span class="st">"LFN"</span>),</span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">divers =</span> <span class="fu">list</span>(<span class="st">"LDIV"</span>)</span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a>europe2014_clean <span class="ot">&lt;-</span> europe2014 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(no_de_bureau_de_vote, code_nuance_du_candidat, nombre_de_voix_du_candidat) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">bureau=</span>no_de_bureau_de_vote, <span class="at">nuance=</span>code_nuance_du_candidat, <span class="at">votes=</span>nombre_de_voix_du_candidat) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(bureau, nuance, votes)</span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a>europe2014_clean <span class="ot">&lt;-</span> <span class="fu">replace_nuance</span>(europe2014_clean, nuances_mapping)</span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a><span class="co">#Présidentielles 2017</span></span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a>pres2017_r1 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(nom, voix) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">nom=</span><span class="fu">tolower</span>(nom)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">nom=</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(nom, <span class="at">id=</span><span class="st">"Latin-ASCII"</span>)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(nom) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">summarize</span>(<span class="at">votes=</span><span class="fu">sum</span>(voix))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 11 × 2
+   nom           votes
+   &lt;chr&gt;         &lt;int&gt;
+ 1 arthaud         838
+ 2 asselineau     2138
+ 3 cheminade       400
+ 4 dupont-aignan  6199
+ 5 fillon        54889
+ 6 hamon         21383
+ 7 lassalle       1423
+ 8 le pen        20766
+ 9 macron        71068
+10 melenchon     53563
+11 poutou         1840</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="co">#https://fr.wikipedia.org/wiki/%C3%89lection_pr%C3%A9sidentielle_fran%C3%A7aise_de_2017#Candidats</span></span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>nuances_mapping <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">extreme_gauche =</span> <span class="fu">list</span>(<span class="st">"arthaud"</span>, <span class="st">"poutou"</span>),</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">gauche =</span> <span class="fu">list</span>(<span class="st">"hamon"</span>, <span class="st">"melenchon"</span>),</span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">centre =</span> <span class="fu">list</span>(<span class="st">"lassalle"</span>, <span class="st">"macron"</span>),</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">droite =</span> <span class="fu">list</span>(<span class="st">"asselineau"</span>, <span class="st">"dupont-aignan"</span>, <span class="st">"fillon"</span>),</span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">extreme_droite =</span> <span class="fu">list</span>(<span class="st">"le pen"</span>, <span class="st">"cheminade"</span>)</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a><span class="co">#Présidentielles 2017 round 1</span></span>
+<span id="cb28-12"><a href="#cb28-12" aria-hidden="true" tabindex="-1"></a>pres2017_r1_clean <span class="ot">&lt;-</span> pres2017_r1 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">nuance=</span><span class="fu">tolower</span>(nom)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(code_du_b_vote, nuance, voix) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">nuance=</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(nuance, <span class="at">id=</span><span class="st">"Latin-ASCII"</span>)) <span class="sc">|&gt;</span> <span class="fu">replace_nuance</span>(nuances_mapping)</span>
+<span id="cb28-13"><a href="#cb28-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-14"><a href="#cb28-14" aria-hidden="true" tabindex="-1"></a><span class="co">#Présidentielles 2017 round 2</span></span>
+<span id="cb28-15"><a href="#cb28-15" aria-hidden="true" tabindex="-1"></a>pres2017_r2_clean <span class="ot">&lt;-</span> pres2017_r2 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">nuance=</span><span class="fu">tolower</span>(nom)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(code_du_b_vote, nuance, voix) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">nuance=</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(nuance, <span class="at">id=</span><span class="st">"Latin-ASCII"</span>)) <span class="sc">|&gt;</span> <span class="fu">replace_nuance</span>(nuances_mapping)</span>
+<span id="cb28-16"><a href="#cb28-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-17"><a href="#cb28-17" aria-hidden="true" tabindex="-1"></a><span class="co">#Législatives 2017</span></span>
+<span id="cb28-18"><a href="#cb28-18" aria-hidden="true" tabindex="-1"></a><span class="co">#round1</span></span>
+<span id="cb28-19"><a href="#cb28-19" aria-hidden="true" tabindex="-1"></a>leg2017_r1 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(nuance, voix) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(nuance) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(nuance) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">summarize</span>(<span class="at">votes=</span><span class="fu">sum</span>(voix))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 14 × 2
+   nuance votes
+   &lt;chr&gt;  &lt;int&gt;
+ 1 COM     2465
+ 2 DIV     5252
+ 3 DLF     1539
+ 4 DVD     2001
+ 5 DVG     7570
+ 6 ECO    12859
+ 7 EXD      303
+ 8 EXG      834
+ 9 FI     20287
+10 FN      9111
+11 LR     22438
+12 REG        0
+13 REM    68799
+14 UDI     4427</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>nuances_mapping <span class="ot">&lt;-</span> <span class="fu">list</span>(</span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">extreme_gauche =</span> <span class="fu">list</span>(<span class="st">"COM"</span>, <span class="st">"EXG"</span>),</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">gauche =</span> <span class="fu">list</span>(<span class="st">"FI"</span>, <span class="st">"DVG"</span>, <span class="st">"ECO"</span>),</span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">centre =</span> <span class="fu">list</span>(<span class="st">"DIV"</span>, <span class="st">"REG"</span>, <span class="st">"REM"</span>, <span class="st">"UDI"</span>),</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">droite =</span> <span class="fu">list</span>(<span class="st">"DLF"</span>, <span class="st">"DVD"</span>, <span class="st">"LR"</span>),</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">extreme_droite =</span> <span class="fu">list</span>(<span class="st">"EXD"</span>, <span class="st">"FN"</span>)</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>leg2017_r1_clean <span class="ot">&lt;-</span> leg2017_r1 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(code_du_b_vote, nuance, voix) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">bureau=</span>code_du_b_vote, <span class="at">votes=</span>voix) <span class="sc">|&gt;</span> <span class="fu">replace_nuance</span>(nuances_mapping)<span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">select</span>(bureau, nuance, votes)</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a><span class="co">#round2</span></span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a><span class="co">#municipales 2020</span></span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>mun2020_r1 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(list) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">votes=</span><span class="fu">sum</span>(vote)) </span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 35 × 2
+   list                                                                    votes
+   &lt;chr&gt;                                                                   &lt;int&gt;
+ 1 Bleu Blanc Lyon Etienne Blanc, Union de la droite, des Républicains et…  7073
+ 2 Bleu Blanc Lyon Étienne Blanc, Union de la droite, Des Républicains et…  1646
+ 3 Bleu Blanc Lyon Étienne Blanc, Union de la droite, des Républicains et…  9277
+ 4 DROIT DE CITÉ                                                              75
+ 5 LUTTE OUVRIERE - Faire entendre le camp des travailleurs                  112
+ 6 LYON 100% SOCIAL                                                           65
+ 7 LYON EN COMMUN                                                           5880
+ 8 LYON en COMMUN                                                            461
+ 9 Lutte Ouvrière - Faire entendre le camp des Travailleurs                  192
+10 Lutte Ouvrière - Faire entendre le camp des travailleurs                   77
+# ℹ 25 more rows</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Function to cleanup party names (lowercase, no accents, and cut to 20 characters)</span></span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>get_votes_by_cleaned_list <span class="ot">&lt;-</span> <span class="cf">function</span>(df) { </span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>  df <span class="sc">|&gt;</span> </span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">liste=</span><span class="fu">tolower</span>(list)) <span class="sc">|&gt;</span></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">liste=</span>stringr<span class="sc">::</span><span class="fu">str_trunc</span>(liste, <span class="dv">20</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">mutate</span>(<span class="at">liste=</span>stringi<span class="sc">::</span><span class="fu">stri_trans_general</span>(liste, <span class="at">id=</span><span class="st">"Latin-ASCII"</span>)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(liste) <span class="sc">|&gt;</span></span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>    dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">votes=</span><span class="fu">sum</span>(vote)) }</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a> <span class="co"># two round data of Municipales 2020</span></span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r1 <span class="ot">&lt;-</span> <span class="fu">get_votes_by_cleaned_list</span>(mun2020_r1)</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r1</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 13 × 2
    liste                votes
@@ -289,8 +446,8 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 12 vivons vraiment l...  7412
 13 vos idees en lumiere   137</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r2 <span class="ot">&lt;-</span> <span class="fu">get_votes_by_cleaned_list</span>(mun2020_r2)</span>
-<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r2 <span class="ot">&lt;-</span> <span class="fu">get_votes_by_cleaned_list</span>(mun2020_r2)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>listes_mun2020_r2</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 2
   liste                votes
@@ -302,114 +459,36 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 5 respirations avec... 17240
 6 un temps d'avance...  2907</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="co">#LR &lt;- list("bleu blanc lyon e...")</span></span>
-<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="co">#DVG &lt;- list ("droit de cite", "lyon 100% social")</span></span>
-<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a><span class="co">#LO &lt;- list ("lutte ouvriere - ...")</span></span>
-<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a><span class="co">#LFI &lt;- list ("lyon en commun")</span></span>
-<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a><span class="co">#EELV &lt;- list ("maintenant lyon p...")</span></span>
-<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a><span class="co">#LC &lt;- list ("positivons lyon a...", "positivons lyon-1...")</span></span>
-<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a><span class="co">#RN &lt;- list ("pour l'amour de lyon")</span></span>
-<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a><span class="co">#LREM &lt;- list ("respirations avec...", "un temps d'avance...")</span></span>
-<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a><span class="co">#PS &lt;- list ("vivons vraiment l...")</span></span>
-<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a><span class="co">#UPR &lt;- list ("vos idees en lumiere")</span></span>
-<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a><span class="co"># https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)</span></span>
-<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>extreme_gauche <span class="ot">&lt;-</span> <span class="fu">character</span>(<span class="dv">0</span>)  <span class="co"># </span></span>
-<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>gauche         <span class="ot">&lt;-</span> <span class="fu">character</span>(<span class="dv">0</span>)  <span class="co"># </span></span>
-<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>centre         <span class="ot">&lt;-</span> <span class="fu">character</span>(<span class="dv">0</span>)  <span class="co"># </span></span>
-<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a>droite         <span class="ot">&lt;-</span> <span class="fu">character</span>(<span class="dv">0</span>)  <span class="co"># </span></span>
-<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>extreme_droite <span class="ot">&lt;-</span> <span class="fu">character</span>(<span class="dv">0</span>)</span>
-<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="co">#Municipales 2020 - 1st round</span></span>
-<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>droite <span class="ot">&lt;-</span> <span class="fu">c</span>(droite, <span class="st">"bleu blanc lyon e..."</span>) </span>
-<span id="cb24-22"><a href="#cb24-22" aria-hidden="true" tabindex="-1"></a>gauche<span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"droit de cite"</span>, <span class="st">"lyon 100% social"</span>) </span>
-<span id="cb24-23"><a href="#cb24-23" aria-hidden="true" tabindex="-1"></a>extreme_gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_gauche, <span class="st">"lutte ouvriere - ..."</span>)</span>
-<span id="cb24-24"><a href="#cb24-24" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche,  <span class="st">"lyon en commun"</span>) </span>
-<span id="cb24-25"><a href="#cb24-25" aria-hidden="true" tabindex="-1"></a>gauche  <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche,   <span class="st">"maintenant lyon p..."</span>)</span>
-<span id="cb24-26"><a href="#cb24-26" aria-hidden="true" tabindex="-1"></a>centre  <span class="ot">&lt;-</span> <span class="fu">c</span>(centre, <span class="st">"positivons lyon a..."</span>, <span class="st">"positivons lyon-1..."</span>)  </span>
-<span id="cb24-27"><a href="#cb24-27" aria-hidden="true" tabindex="-1"></a>extreme_droite <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_droite, <span class="st">"pour l'amour de lyon"</span>)</span>
-<span id="cb24-28"><a href="#cb24-28" aria-hidden="true" tabindex="-1"></a>centre  <span class="ot">&lt;-</span> <span class="fu">c</span>(centre, <span class="st">"respirations avec..."</span>, <span class="st">"un temps d'avance..."</span>) </span>
-<span id="cb24-29"><a href="#cb24-29" aria-hidden="true" tabindex="-1"></a>gauche  <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"vivons vraiment l..."</span>)</span>
-<span id="cb24-30"><a href="#cb24-30" aria-hidden="true" tabindex="-1"></a>droite  <span class="ot">&lt;-</span> <span class="fu">c</span>(droite,  <span class="st">"vos idees en lumiere"</span>)</span>
-<span id="cb24-31"><a href="#cb24-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-32"><a href="#cb24-32" aria-hidden="true" tabindex="-1"></a><span class="co"># #Municipales 2020 - 2nd round</span></span>
-<span id="cb24-33"><a href="#cb24-33" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"ensemble, l'ecolo..."</span>) </span>
-<span id="cb24-34"><a href="#cb24-34" aria-hidden="true" tabindex="-1"></a>droite <span class="ot">&lt;-</span> <span class="fu">c</span>(droite, <span class="st">"lyon, la force du..."</span>) </span>
-<span id="cb24-35"><a href="#cb24-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-36"><a href="#cb24-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-37"><a href="#cb24-37" aria-hidden="true" tabindex="-1"></a><span class="co"># Parlement européen, 2014</span></span>
-<span id="cb24-38"><a href="#cb24-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-39"><a href="#cb24-39" aria-hidden="true" tabindex="-1"></a><span class="co">#  https://fr.wikipedia.org/wiki/%C3%89lections_europ%C3%A9ennes_de_2014_en_France#Sud-Est_2</span></span>
-<span id="cb24-40"><a href="#cb24-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb24-41"><a href="#cb24-41" aria-hidden="true" tabindex="-1"></a>candidats <span class="ot">=</span> europe2014 <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">group_by</span>(candidat) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">summarise</span>(<span class="at">votes=</span><span class="fu">sum</span>(nombre_de_voix_du_candidat)) <span class="sc">|&gt;</span> dplyr<span class="sc">::</span><span class="fu">arrange</span>(<span class="fu">desc</span>(votes))</span>
-<span id="cb24-42"><a href="#cb24-42" aria-hidden="true" tabindex="-1"></a>candidats</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 23 × 2
-   candidat                votes
-   &lt;chr&gt;                   &lt;int&gt;
- 1 Renaud MUSELIER         28777
- 2 Vincent PEILLON         21731
- 3 Jean-Marie LE PEN       17016
- 4 Michèle RIVASI          16635
- 5 Sylvie GOULARD          14890
- 6 Marie-Christine VERGIAT  7299
- 7 Jean-Baptiste COUTELIS   5515
- 8 Gerbert RAMBAUD          3620
- 9 Bertrand LESCURE         3584
-10 Valérie MIRA             2296
-# ℹ 13 more rows</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># </span></span>
-<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>droite  <span class="ot">&lt;-</span> <span class="fu">c</span>(droite, <span class="st">"Renaud MUSELIER"</span>)</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>gauche   <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"Vincent PEILLON"</span>)</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>extreme_droite <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_droite, <span class="st">"Jean-Marie LE PEN"</span>)  </span>
-<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>centre  <span class="ot">&lt;-</span> <span class="fu">c</span>(centre, <span class="st">"Sylvie GOULARD"</span>)     </span>
-<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>extreme_gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_gauche, <span class="st">"Marie-Christine VERGIAT"</span>) </span>
-<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>gauche  <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"Jean-Baptiste"</span>)</span>
-<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>extreme_droite <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_droite, <span class="st">"Gerbert RAMBAUD"</span>)    </span>
-<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>droite <span class="ot">&lt;-</span> <span class="fu">c</span>(droite,  <span class="st">"Bertrand LESCURE"</span>) </span>
-<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"Valerie MIRA"</span>) </span>
-<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"extreme_gauche:</span><span class="sc">\n</span><span class="st">"</span>); <span class="fu">print</span>(extreme_gauche)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>extreme_gauche:</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "lutte ouvriere - ..."    "Marie-Christine VERGIAT"</code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"gauche:</span><span class="sc">\n</span><span class="st">"</span>); <span class="fu">print</span>(gauche)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>gauche:</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "droit de cite"        "lyon 100% social"     "lyon en commun"      
-[4] "maintenant lyon p..." "vivons vraiment l..." "ensemble, l'ecolo..."
-[7] "Vincent PEILLON"      "Jean-Baptiste"        "Valerie MIRA"        </code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"centre:</span><span class="sc">\n</span><span class="st">"</span>); <span class="fu">print</span>(centre)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>centre:</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "positivons lyon a..." "positivons lyon-1..." "respirations avec..."
-[4] "un temps d'avance..." "Sylvie GOULARD"      </code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"droite:</span><span class="sc">\n</span><span class="st">"</span>); <span class="fu">print</span>(droite)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>droite:</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "bleu blanc lyon e..." "vos idees en lumiere" "lyon, la force du..."
-[4] "Renaud MUSELIER"      "Bertrand LESCURE"    </code></pre>
-</div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">"extreme_droite:</span><span class="sc">\n</span><span class="st">"</span>); <span class="fu">print</span>(extreme_droite)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output cell-output-stdout">
-<pre><code>extreme_droite:</code></pre>
-</div>
-<div class="cell-output cell-output-stdout">
-<pre><code>[1] "pour l'amour de lyon" "Jean-Marie LE PEN"    "Gerbert RAMBAUD"     </code></pre>
-</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co"># https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>extreme_gauche <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>centre <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>droite <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>extreme_droite <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>droite <span class="ot">&lt;-</span> <span class="fu">c</span>(droite, <span class="st">"bleu blanc lyon e..."</span>)</span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"droit de cite"</span>, <span class="st">"lyon 100% social"</span>)</span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>extreme_gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_gauche, <span class="st">"lutte ouvriere - ..."</span>)</span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"lyon en commun"</span>)</span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"maintenant lyon p..."</span>)</span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>centre <span class="ot">&lt;-</span> <span class="fu">c</span>(centre, <span class="st">"positivons lyon a..."</span>, <span class="st">"positivons lyon-1..."</span>)</span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>extreme_droite <span class="ot">&lt;-</span> <span class="fu">c</span>(extreme_droite, <span class="st">"pour l'amour de lyon"</span>)</span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a>centre <span class="ot">&lt;-</span> <span class="fu">c</span>(centre, <span class="st">"respirations avec..."</span>, <span class="st">"un temps d'avance..."</span>)</span>
+<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a>gauche <span class="ot">&lt;-</span> <span class="fu">c</span>(gauche, <span class="st">"vivons vraiment l..."</span>)</span>
+<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>droite <span class="ot">&lt;-</span> <span class="fu">c</span>(droite, <span class="st">"vos idees en lumiere"</span>)</span>
+<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a><span class="co">#LR &lt;- list("bleu blanc lyon e...")</span></span>
+<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a><span class="co">#DVG &lt;- list ("droit de cite", "lyon 100% social")</span></span>
+<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a><span class="co">#LO &lt;- list ("lutte ouvriere - ...")</span></span>
+<span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a><span class="co">#LFI &lt;- list ("lyon en commun")</span></span>
+<span id="cb36-25"><a href="#cb36-25" aria-hidden="true" tabindex="-1"></a><span class="co">#EELV &lt;- list ("maintenant lyon p...")</span></span>
+<span id="cb36-26"><a href="#cb36-26" aria-hidden="true" tabindex="-1"></a><span class="co">#LC &lt;- list ("positivons lyon a...", "positivons lyon-1...")</span></span>
+<span id="cb36-27"><a href="#cb36-27" aria-hidden="true" tabindex="-1"></a><span class="co">#RN &lt;- list ("pour l'amour de lyon")</span></span>
+<span id="cb36-28"><a href="#cb36-28" aria-hidden="true" tabindex="-1"></a><span class="co">#LREM &lt;- list ("respirations avec...", "un temps d'avance...")</span></span>
+<span id="cb36-29"><a href="#cb36-29" aria-hidden="true" tabindex="-1"></a><span class="co">#PS &lt;- list ("vivons vraiment l...")</span></span>
+<span id="cb36-30"><a href="#cb36-30" aria-hidden="true" tabindex="-1"></a><span class="co">#UPR &lt;- list ("vos idees en lumiere")</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 </section>
 <section id="section" class="level2">

@@ -145,7 +145,7 @@ nuances_mapping <- list(
 
 europe2014_clean <- europe2014 |> dplyr::select(no_de_bureau_de_vote, code_nuance_du_candidat, nombre_de_voix_du_candidat) |> dplyr::mutate(bureau=no_de_bureau_de_vote, nuance=code_nuance_du_candidat, votes=nombre_de_voix_du_candidat) |> dplyr::select(bureau, nuance, votes)
 
-europe2014_clean <- replace_nuance(europe_clean, nuances_mapping)
+europe2014_clean <- replace_nuance(europe2014_clean, nuances_mapping)
 
 #Présidentielles 2017
 pres2017_r1 |> dplyr::select(nom, voix) |> dplyr::mutate(nom=tolower(nom)) |> dplyr::mutate(nom=stringi::stri_trans_general(nom, id="Latin-ASCII")) |> dplyr::group_by(nom) |> dplyr::summarize(votes=sum(voix))
@@ -167,6 +167,7 @@ pres2017_r1_clean <- pres2017_r1 |> dplyr::mutate(nuance=tolower(nom)) |> dplyr:
 pres2017_r2_clean <- pres2017_r2 |> dplyr::mutate(nuance=tolower(nom)) |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(nuance=stringi::stri_trans_general(nuance, id="Latin-ASCII")) |> replace_nuance(nuances_mapping)
 
 #Législatives 2017
+#round1
 leg2017_r1 |> dplyr::select(nuance, voix) |> dplyr::mutate(nuance) |> dplyr::group_by(nuance) |> dplyr::summarize(votes=sum(voix))
 
 nuances_mapping <- list(
@@ -176,7 +177,10 @@ nuances_mapping <- list(
   droite = list("DLF", "DVD", "LR"),
   extreme_droite = list("EXD", "FN")
 )
-leg2017_r1_clean <- leg2017_r1 |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(bureau=code_du_b_vote, votes=voix) |> replace_nuance(nuances_mapping)
+leg2017_r1_clean <- leg2017_r1 |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(bureau=code_du_b_vote, votes=voix) |> replace_nuance(nuances_mapping)|> dplyr::select(bureau, nuance, votes)
+
+#round2
+
 
 #municipales 2020
 mun2020_r1 |> dplyr::group_by(list) |> dplyr::summarise(votes=sum(vote)) 
