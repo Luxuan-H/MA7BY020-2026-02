@@ -113,6 +113,74 @@ pres2022_r2 = arrow::read_parquet("data_raw/lyon_pres2022_r2.parquet")
 # clean_data
 # ===================
 
+# Parlement européen, 2014
+
+#  https://fr.wikipedia.org/wiki/%C3%89lections_europ%C3%A9ennes_de_2014_en_France#Sud-Est_2
+
+partis = europe2014 |> dplyr::group_by(code_nuance_du_candidat) |> dplyr::summarise(votes=sum(nombre_de_voix_du_candidat)) 
+partis
+
+candidats = europe2014 |> dplyr::group_by(candidat, code_nuance_du_candidat) |> dplyr::summarise(votes=sum(nombre_de_voix_du_candidat)) |> dplyr::arrange(desc(votes))
+candidats
+
+replace_nuance <- function(df, nuances_mapping) {
+  for (nuance_i in seq_along(nuances_mapping)) {
+    for (liste_noms in nuances_mapping[nuance_i]) {
+      for (nom in liste_noms) {
+        df[df==nom] <- names(nuances_mapping)[nuance_i]
+      }
+    }
+  }
+  df
+}
+
+nuances_mapping <- list(
+  extreme_gauche = list("LEXG", "LFG"),
+  gauche = list("LDVG", "LUG", "LVEC"),
+  centre = list("LUC"),
+  droite = list("LDVD", "LUMP"),
+  extreme_droite = list("LFN"),
+  divers = list("LDIV")
+)
+
+europe2014_clean <- europe2014 |> dplyr::select(no_de_bureau_de_vote, code_nuance_du_candidat, nombre_de_voix_du_candidat) |> dplyr::mutate(bureau=no_de_bureau_de_vote, nuance=code_nuance_du_candidat, votes=nombre_de_voix_du_candidat) |> dplyr::select(bureau, nuance, votes)
+
+europe2014_clean <- replace_nuance(europe_clean, nuances_mapping)
+
+#Présidentielles 2017
+pres2017_r1 |> dplyr::select(nom, voix) |> dplyr::mutate(nom=tolower(nom)) |> dplyr::mutate(nom=stringi::stri_trans_general(nom, id="Latin-ASCII")) |> dplyr::group_by(nom) |> dplyr::summarize(votes=sum(voix))
+
+#https://fr.wikipedia.org/wiki/%C3%89lection_pr%C3%A9sidentielle_fran%C3%A7aise_de_2017#Candidats
+
+nuances_mapping <- list(
+  extreme_gauche = list("arthaud", "poutou"),
+  gauche = list("hamon", "melenchon"),
+  centre = list("lassalle", "macron"),
+  droite = list("asselineau", "dupont-aignan", "fillon"),
+  extreme_droite = list("le pen", "cheminade")
+)
+
+#Présidentielles 2017 round 1
+pres2017_r1_clean <- pres2017_r1 |> dplyr::mutate(nuance=tolower(nom)) |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(nuance=stringi::stri_trans_general(nuance, id="Latin-ASCII")) |> replace_nuance(nuances_mapping)
+
+#Présidentielles 2017 round 2
+pres2017_r2_clean <- pres2017_r2 |> dplyr::mutate(nuance=tolower(nom)) |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(nuance=stringi::stri_trans_general(nuance, id="Latin-ASCII")) |> replace_nuance(nuances_mapping)
+
+#Législatives 2017
+leg2017_r1 |> dplyr::select(nuance, voix) |> dplyr::mutate(nuance) |> dplyr::group_by(nuance) |> dplyr::summarize(votes=sum(voix))
+
+nuances_mapping <- list(
+  extreme_gauche = list("COM", "EXG"),
+  gauche = list("FI", "DVG", "ECO"),
+  centre = list("DIV", "REG", "REM", "UDI"),
+  droite = list("DLF", "DVD", "LR"),
+  extreme_droite = list("EXD", "FN")
+)
+leg2017_r1_clean <- leg2017_r1 |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(bureau=code_du_b_vote, votes=voix) |> replace_nuance(nuances_mapping)
+
+#municipales 2020
+mun2020_r1 |> dplyr::group_by(list) |> dplyr::summarise(votes=sum(vote)) 
+
 # Function to cleanup party names (lowercase, no accents, and cut to 20 characters)
 get_votes_by_cleaned_list <- function(df) { 
   df |> 
@@ -121,13 +189,31 @@ get_votes_by_cleaned_list <- function(df) {
     dplyr::mutate(liste=stringi::stri_trans_general(liste, id="Latin-ASCII")) |> dplyr::group_by(liste) |>
     dplyr::summarise(votes=sum(vote)) }
 
-
  # two round data of Municipales 2020
 listes_mun2020_r1 <- get_votes_by_cleaned_list(mun2020_r1)
 listes_mun2020_r1
 
 listes_mun2020_r2 <- get_votes_by_cleaned_list(mun2020_r2)
 listes_mun2020_r2
+
+# https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)
+
+extreme_gauche <- c()
+gauche <- c()
+centre <- c()
+droite <- c()
+extreme_droite <- c()
+
+droite <- c(droite, "bleu blanc lyon e...")
+gauche <- c(gauche, "droit de cite", "lyon 100% social")
+extreme_gauche <- c(extreme_gauche, "lutte ouvriere - ...")
+gauche <- c(gauche, "lyon en commun")
+gauche <- c(gauche, "maintenant lyon p...")
+centre <- c(centre, "positivons lyon a...", "positivons lyon-1...")
+extreme_droite <- c(extreme_droite, "pour l'amour de lyon")
+centre <- c(centre, "respirations avec...", "un temps d'avance...")
+gauche <- c(gauche, "vivons vraiment l...")
+droite <- c(droite, "vos idees en lumiere")
 
 
 #LR <- list("bleu blanc lyon e...")
@@ -141,54 +227,8 @@ listes_mun2020_r2
 #PS <- list ("vivons vraiment l...")
 #UPR <- list ("vos idees en lumiere")
 
-# https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)
-
-extreme_gauche <- character(0)  # 
-gauche         <- character(0)  # 
-centre         <- character(0)  # 
-droite         <- character(0)  # 
-extreme_droite <- character(0)
-
-#Municipales 2020 - 1st round
-droite <- c(droite, "bleu blanc lyon e...") 
-gauche<- c(gauche, "droit de cite", "lyon 100% social") 
-extreme_gauche <- c(extreme_gauche, "lutte ouvriere - ...")
-gauche <- c(gauche,  "lyon en commun") 
-gauche  <- c(gauche,   "maintenant lyon p...")
-centre  <- c(centre, "positivons lyon a...", "positivons lyon-1...")  
-extreme_droite <- c(extreme_droite, "pour l'amour de lyon")
-centre  <- c(centre, "respirations avec...", "un temps d'avance...") 
-gauche  <- c(gauche, "vivons vraiment l...")
-droite  <- c(droite,  "vos idees en lumiere")
-
-# #Municipales 2020 - 2nd round
-gauche <- c(gauche, "ensemble, l'ecolo...") 
-droite <- c(droite, "lyon, la force du...") 
 
 
-# Parlement européen, 2014
-
-#  https://fr.wikipedia.org/wiki/%C3%89lections_europ%C3%A9ennes_de_2014_en_France#Sud-Est_2
-
-candidats = europe2014 |> dplyr::group_by(candidat) |> dplyr::summarise(votes=sum(nombre_de_voix_du_candidat)) |> dplyr::arrange(desc(votes))
-candidats
-
-# 
-droite  <- c(droite, "Renaud MUSELIER")
-gauche   <- c(gauche, "Vincent PEILLON")
-extreme_droite <- c(extreme_droite, "Jean-Marie LE PEN")  
-centre  <- c(centre, "Sylvie GOULARD")     
-extreme_gauche <- c(extreme_gauche, "Marie-Christine VERGIAT") 
-gauche  <- c(gauche, "Jean-Baptiste")
-extreme_droite <- c(extreme_droite, "Gerbert RAMBAUD")    
-droite <- c(droite,  "Bertrand LESCURE") 
-gauche <- c(gauche, "Valerie MIRA") 
-
-cat("extreme_gauche:\n"); print(extreme_gauche)
-cat("gauche:\n"); print(gauche)
-cat("centre:\n"); print(centre)
-cat("droite:\n"); print(droite)
-cat("extreme_droite:\n"); print(extreme_droite)
 
 ```
 
