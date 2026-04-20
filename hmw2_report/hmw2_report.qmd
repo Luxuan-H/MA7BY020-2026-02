@@ -180,44 +180,51 @@ nuances_mapping <- list(
 leg2017_r1_clean <- leg2017_r1 |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(bureau=code_du_b_vote, votes=voix) |> replace_nuance(nuances_mapping)|> dplyr::select(bureau, nuance, votes)
 
 #round2
-
+#  no bureau imformation in the data?
+# leg2017_r2_clean <- leg2017_r2 |> dplyr::select(code_du_b_vote, nuance, voix) |> dplyr::mutate(bureau=code_du_b_vote, votes=voix) |> replace_nuance(nuances_mapping)
 
 #municipales 2020
 mun2020_r1 |> dplyr::group_by(list) |> dplyr::summarise(votes=sum(vote)) 
 
 # Function to cleanup party names (lowercase, no accents, and cut to 20 characters)
-get_votes_by_cleaned_list <- function(df) { 
-  df |> 
-    dplyr::mutate(liste=tolower(list)) |>
-    dplyr::mutate(liste=stringr::str_trunc(liste, 20)) |>
-    dplyr::mutate(liste=stringi::stri_trans_general(liste, id="Latin-ASCII")) |> dplyr::group_by(liste) |>
-    dplyr::summarise(votes=sum(vote)) }
+get_votes_by_cleaned_list <- function(df)
+{
+  df |> dplyr::mutate(liste=tolower(list)) |> dplyr::mutate(liste=stringr::str_trunc(liste, 20)) |> dplyr::mutate(liste=stringi::stri_trans_general(liste, id="Latin-ASCII")) |> dplyr::group_by(liste) |> dplyr::summarise(votes=sum(vote))
+}
+
+listes_mun2020_r1 = get_votes_by_cleaned_list(mun2020_r1)
+listes_mun2020_r1
+listes_mun2020_r2 = get_votes_by_cleaned_list(mun2020_r2)
+listes_mun2020_r2
+
+nuances_mapping <- list(
+  extreme_gauche = list("lutte ouvriere - ...", "EXG"),
+  gauche = list("droit de cite", "lyon 100% social", "lyon en commun", "maintenant lyon p...", "vivons vraiment l...", "ensemble, l'ecolo..."),
+  centre = list("positivons lyon a...", "positivons lyon-1...", "respirations avec...", "un temps d'avance..."),
+  droite = list("bleu blanc lyon e...", "vos idees en lumiere", "lyon, la force du..."),
+  extreme_droite = list("pour l'amour de lyon")
+)
 
  # two round data of Municipales 2020
-listes_mun2020_r1 <- get_votes_by_cleaned_list(mun2020_r1)
-listes_mun2020_r1
-
-listes_mun2020_r2 <- get_votes_by_cleaned_list(mun2020_r2)
-listes_mun2020_r2
+mun2020_clean_r1 = mun2020_r1 |> dplyr::mutate(nuance=tolower(list)) |> dplyr::mutate(nuance=stringr::str_trunc(nuance, 20)) |> dplyr::mutate(nuance=stringi::stri_trans_general(nuance, id="Latin-ASCII")) |>  dplyr::select(office, nuance, vote) |> dplyr::mutate(bureau=office, nuance=nuance, votes=vote) |> replace_nuance(nuances_mapping)
+mun2020_clean_r2 = mun2020_r2 |> dplyr::mutate(nuance=tolower(list)) |> dplyr::mutate(nuance=stringr::str_trunc(nuance, 20)) |> dplyr::mutate(nuance=stringi::stri_trans_general(nuance, id="Latin-ASCII")) |>  dplyr::select(office, nuance, vote) |> dplyr::mutate(bureau=office, nuance=nuance, votes=vote) |> replace_nuance(nuances_mapping)
 
 # https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)
 
-extreme_gauche <- c()
-gauche <- c()
-centre <- c()
-droite <- c()
-extreme_droite <- c()
 
-droite <- c(droite, "bleu blanc lyon e...")
-gauche <- c(gauche, "droit de cite", "lyon 100% social")
-extreme_gauche <- c(extreme_gauche, "lutte ouvriere - ...")
-gauche <- c(gauche, "lyon en commun")
-gauche <- c(gauche, "maintenant lyon p...")
-centre <- c(centre, "positivons lyon a...", "positivons lyon-1...")
-extreme_droite <- c(extreme_droite, "pour l'amour de lyon")
-centre <- c(centre, "respirations avec...", "un temps d'avance...")
-gauche <- c(gauche, "vivons vraiment l...")
-droite <- c(droite, "vos idees en lumiere")
+#Présidentielles 2022
+pres2022_r1 |> dplyr::group_by(nom) |> dplyr::summarise(votes=sum(voix))
+
+nuances_mapping <- list(
+  extreme_gauche = list("ARTHAUD", "POUTOU", "ROUSSEL"),
+  gauche = list("MÉLENCHON", "JADOT", "HIDALGO"),
+  centre = list("LASSALLE", "MACRON"),
+  droite = list("DUPONT-AIGNAN", "PÉCRESSE"),
+  extreme_droite = list("LE PEN", "ZEMMOUR")
+)
+pres2022_r1_clean <- pres2022_r1 |> dplyr::select(code_du_b_vote, nom, voix) |> dplyr::mutate(bureau=code_du_b_vote, nuance=nom, votes=voix) |> replace_nuance(nuances_mapping)
+pres2022_r2_clean <- pres2022_r2 |> dplyr::select(code_du_b_vote, nom, voix) |> dplyr::mutate(bureau=code_du_b_vote, nuance=nom, votes=voix) |> replace_nuance(nuances_mapping)
+
 
 
 #LR <- list("bleu blanc lyon e...")
