@@ -18,6 +18,7 @@ library(tidyr)
 library(ggplot2)
 library(ggrepel)    #  avoid overlapping labels
 library(corrplot) 
+library(tibble)
 
 # ===================
 #list of datasets and download 
@@ -285,22 +286,152 @@ cat(" Polling stations:", nrow(all_elections_clean), "\n")
 cat(" Variables:", ncol(all_elections_clean) - 1, "\n")
 
 
+ # Helper: run PCA on one wide table and return summary
+run_pca <- function(wide_df, label) {
+  # Remove bureau column, keep numeric only
+  X <- wide_df |> dplyr::select(-bureau) |> as.matrix()
+  
+  # Run PCA
+  pca <- prcomp(X, center = TRUE, scale. = TRUE)
+  
+  # Extract variance explained
+  imp <- summary(pca)$importance
+  pc1_pct <- round(imp[2, 1] * 100, 1)
+  pc2_pct <- round(imp[2, 2] * 100, 1)
+  
 
- 
-#PCA
+  
+  list(pca = pca, label = label, pc1 = pc1_pct, pc2 = pc2_pct,
+       bureaux = wide_df$bureau)
+}
 
-# Extract numeric matrix (remove bureau column)
-X <- all_elections |>
-  select(-bureau) |>
-  as.matrix()
+# Run individual PCA on each first-round election
 
-pca <- prcomp(X, center = TRUE, scale. = TRUE)
+# Use round 1: most candidates, richest information
 
-# Check variance explained by each principal component
-importance <- summary(pca)$importance
+cat(" Individual PCA per election:\n")
+cat(strrep("-", 55), "\n")
 
-cat("Variance explained by each PC:\n")
-print(round(importance[, 1:6] * 100, 1))  #show first 6
+pca_eu14    <- run_pca(w_eu14,    "欧洲议会2014  / EU Parliament 2014")
+pca_p17r1   <- run_pca(w_p17r1,   "总统2017第1轮 / Presidential 2017 R1")
+pca_leg17r1 <- run_pca(w_leg17r1, "立法2017第1轮 / Legislative 2017 R1")
+pca_mun20r1 <- run_pca(w_mun20r1, "市政2020第1轮 / Municipal 2020 R1")
+pca_p22r1   <- run_pca(w_p22r1,   "总统2022第1轮 / Presidential 2022 R1")
+
+
+
+# Plot 1: Compare PC1 variance explained across elections
+# This answers: which election had the most political polarization?
+
+variance_compare <- data.frame(
+  election = c("EU 2014", "Pres 2017\nR1", "Leg 2017\nR1",
+               "Mun 2020\nR1", "Pres 2022\nR1"),
+  pc1 = c(pca_eu14$pc1, pca_p17r1$pc1, pca_leg17r1$pc1,
+           pca_mun20r1$pc1, pca_p22r1$pc1),
+  pc2 = c(pca_eu14$pc2, pca_p17r1$pc2, pca_leg17r1$pc2,
+           pca_mun20r1$pc2, pca_p22r1$pc2)
+) |>
+  mutate(total = pc1 + pc2,
+         election = factor(election, levels = election))
+
+# Convert to long format for stacked bars
+variance_long <- variance_compare |>
+  pivot_longer(cols = c(pc1, pc2),
+               names_to = "component",
+               values_to = "variance") |>
+  mutate(component = ifelse(component == "pc1", "PC1", "PC2"))
+
+ggplot(variance_long, aes(x = election, y = variance, fill = component)) +
+  geom_col(alpha = 0.85, width = 0.6) +
+  geom_text(
+    data = variance_compare,
+    aes(x = election, y = total + 1.5,
+        label = paste0(total, "%")),
+    inherit.aes = FALSE, size = 3.5, fontface = "bold"
+  ) +
+  scale_fill_manual(values = c("PC1" = "#4E79A7", "PC2" = "#A0C4E2"),
+                    name = " Component") +
+  geom_hline(yintercept = 70, linetype = "dashed", color = "grey50") +
+  annotate("text", x = 0.6, y = 71.5,
+           label = "70% Reference", size = 3, color = "grey50", hjust = 0) +
+  labs(
+    title    = " PC1+PC2 Variance Explained per Election",
+    subtitle = "Higher = political divide more concentrated on left-right axis",
+    x = "", y = " Variance Explained (%)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(face = "bold"))
+
+# Plot 2: Correlation circles for all elections (2×3 grid)
+# Check if variable directions are consistent across elections
+
+make_circle_data <- function(pca_result, label) {
+  as.data.frame(pca_result$pca$rotation[, 1:2]) |>
+    rownames_to_column("variable") |>
+    mutate(
+      election = label,
+      length   = sqrt(PC1^2 + PC2^2),
+      nuance   = case_when(
+        str_detect(variable, "extreme_gauche") ~ "Ext.gauche",
+        str_detect(variable, "gauche")         ~ "Gauche",
+        str_detect(variable, "centre")         ~ "Centre",
+        str_detect(variable, "droite") & !str_detect(variable, "extreme") ~ "Droite",
+        str_detect(variable, "extreme_droite") ~ "Ext.droite",
+        TRUE ~ "Divers"
+      )
+    )
+}
+
+all_circles <- bind_rows(
+  make_circle_data(pca_eu14,    "EU 2014"),
+  make_circle_data(pca_p17r1,   "Pres 2017 R1"),
+  make_circle_data(pca_leg17r1, "Leg 2017 R1"),
+  make_circle_data(pca_mun20r1, "Mun 2020 R1"),
+  make_circle_data(pca_p22r1,   "Pres 2022 R1")
+) |>
+  mutate(election = factor(election,
+                           levels = c("EU 2014", "Pres 2017 R1", "Leg 2017 R1",
+                                      "Mun 2020 R1", "Pres 2022 R1")))
+
+color_palette <- c(
+  "Ext.gauche" = "#B22222",
+  "Gauche"     = "#E15759",
+  "Centre"     = "#F28E2B",
+  "Droite"     = "#4E79A7",
+  "Ext.droite" = "#1a1a6e",
+  "Divers"     = "#76B7B2"
+)
+
+ggplot(all_circles, aes(x = PC1, y = PC2, color = nuance)) +
+  # Unit circle
+  annotate("path",
+           x = cos(seq(0, 2*pi, length.out = 100)),
+           y = sin(seq(0, 2*pi, length.out = 100)),
+           color = "grey80", linetype = "dashed") +
+  geom_hline(yintercept = 0, color = "grey70") +
+  geom_vline(xintercept = 0, color = "grey70") +
+  geom_segment(aes(xend = 0, yend = 0),
+               arrow = arrow(length = unit(0.15, "cm"), ends = "first"),
+               linewidth = 0.7, alpha = 0.8) +
+  geom_point(size = 2) +
+  geom_text_repel(aes(label = variable), size = 2,
+                  max.overlaps = 20, show.legend = FALSE) +
+  scale_color_manual(values = color_palette, name = "Nuance") +
+  coord_equal(xlim = c(-1.2, 1.2), ylim = c(-1.2, 1.2)) +
+  # One panel per election
+  facet_wrap(~ election, ncol = 3) +
+  labs(
+    title    = "Correlation Circles per Election",
+    subtitle = " Consistent arrows = stable political structure",
+    x = "PC1", y = "PC2"
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(plot.title    = element_text(face = "bold"),
+        legend.position = "bottom",
+        strip.text    = element_text(face = "bold"))
+
+ggsave("plot2_circles_comparison.png", width = 20, height = 13, dpi = 150)
+
 
 
 
