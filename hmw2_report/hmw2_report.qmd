@@ -215,7 +215,6 @@ mun2020_clean_r2 = mun2020_r2 |> dplyr::mutate(nuance=tolower(list)) |> dplyr::m
 
 # https://fr.wikipedia.org/wiki/%C3%89lections_municipales_de_2020_%C3%A0_Lyon#R%C3%A9sultats_g%C3%A9n%C3%A9raux)
 
-
 #Présidentielles 2022
 pres2022_r1 |> dplyr::group_by(nom) |> dplyr::summarise(votes=sum(voix))
 
@@ -226,8 +225,12 @@ nuances_mapping <- list(
   droite = list("DUPONT-AIGNAN", "PÉCRESSE"),
   extreme_droite = list("LE PEN", "ZEMMOUR")
 )
-pres2022_r1_clean <- pres2022_r1 |> dplyr::select(code_du_b_vote, nom, voix) |> dplyr::mutate(bureau=code_du_b_vote, nuance=nom, votes=voix) |> replace_nuance(nuances_mapping)|> dplyr::select(bureau = code_du_b_vote, nuance, votes = voix) 
-pres2022_r2_clean <- pres2022_r2 |> dplyr::select(code_du_b_vote, nom, voix) |> dplyr::mutate(bureau=code_du_b_vote, nuance=nom, votes=voix) |> replace_nuance(nuances_mapping)|> dplyr::select(bureau = code_du_b_vote, nuance, votes = voix) 
+pres2022_r1_clean <- pres2022_r1 |> dplyr::select(code_du_b_vote, nom, voix) |> dplyr::mutate(bureau=code_du_b_vote, nuance=nom, votes=voix) |> replace_nuance(nuances_mapping)|> dplyr::select(bureau = code_du_b_vote, nuance, votes = voix) |>
+  dplyr::mutate(bureau = stringr::str_pad(
+    as.character(bureau), width = 4, side = "left", pad = "0"))
+pres2022_r2_clean <- pres2022_r2 |> dplyr::select(code_du_b_vote, nom, voix) |> dplyr::mutate(bureau=code_du_b_vote, nuance=nom, votes=voix) |> replace_nuance(nuances_mapping)|> dplyr::select(bureau = code_du_b_vote, nuance, votes = voix) |>
+  dplyr::mutate(bureau = stringr::str_pad(
+    as.character(bureau), width = 4, side = "left", pad = "0"))
 
 
 #LR <- list("bleu blanc lyon e...")
@@ -253,7 +256,8 @@ make_wide <- function(df, label) {
     dplyr::ungroup() |>
     dplyr::select(bureau, nuance, pct) |>
     tidyr::pivot_wider(names_from = nuance, values_from = pct, values_fill = 0) |>
-    dplyr::rename_with(~ paste0(label, "_", .), -bureau)
+    dplyr::rename_with(~ paste0(label, "_", .), -bureau) |>
+    dplyr::select(where(~ !all(. == 0)))
 }
 
 #  Generate wide tables
@@ -285,39 +289,49 @@ all_elections_clean <- na.omit(all_elections)
 cat(" Polling stations:", nrow(all_elections_clean), "\n")
 cat(" Variables:", ncol(all_elections_clean) - 1, "\n")
 
+#===============================================================================
+# Extract numeric matrix (remove bureau column)
+X <- all_elections_clean |>
+  select(-bureau) |>
+  as.matrix()
 
- # Helper: run PCA on one wide table and return summary
-run_pca <- function(wide_df, label) {
-  # Remove bureau column, keep numeric only
-  X <- wide_df |> dplyr::select(-bureau) |> as.matrix()
-  
-  # Run PCA
-  pca <- prcomp(X, center = TRUE, scale. = TRUE)
-  
-  # Extract variance explained
-  imp <- summary(pca)$importance
-  pc1_pct <- round(imp[2, 1] * 100, 1)
-  pc2_pct <- round(imp[2, 2] * 100, 1)
-  
+# ────────────────────────────────────────────────
+# Run PCA
+# center = TRUE  :  subtract column mean (centering)
+# scale. = TRUE  :  divide by SD (scaling)
+#                 
+pca <- prcomp(X, center = TRUE, scale. = TRUE)
 
-  
-  list(pca = pca, label = label, pc1 = pc1_pct, pc2 = pc2_pct,
-       bureaux = wide_df$bureau)
-}
+# Check variance explained by each principal component
+importance <- summary(pca)$importance
+cat("Variance explained by each PC:\n")
+print(round(importance[, 1:6] * 100, 1))  #show first 6
 
-# Run individual PCA on each first-round election
+# Plot 1: Scree Plot 
 
-# Use round 1: most candidates, richest information
+variance_df <- data.frame(
+  PC       = paste0("PC", 1:length(pca$sdev)),
+  variance = (pca$sdev^2) / sum(pca$sdev^2) * 100,  # convert to %
+  cumvar   = cumsum((pca$sdev^2) / sum(pca$sdev^2) * 100)  # cumulative
+) |> slice(1:10)  #  show first 10
 
-cat(" Individual PCA per election:\n")
-cat(strrep("-", 55), "\n")
-
-pca_eu14    <- run_pca(w_eu14,    "欧洲议会2014  / EU Parliament 2014")
-pca_p17r1   <- run_pca(w_p17r1,   "总统2017第1轮 / Presidential 2017 R1")
-pca_leg17r1 <- run_pca(w_leg17r1, "立法2017第1轮 / Legislative 2017 R1")
-pca_mun20r1 <- run_pca(w_mun20r1, "市政2020第1轮 / Municipal 2020 R1")
-pca_p22r1   <- run_pca(w_p22r1,   "总统2022第1轮 / Presidential 2022 R1")
-
+ggplot(variance_df, aes(x = reorder(PC, -variance), y = variance)) +
+  geom_col(fill = "#4E79A7", alpha = 0.8) +
+  geom_line(aes(group = 1), color = "#E15759", linewidth = 1) +
+  geom_point(color = "#E15759", size = 3) +
+  geom_line(aes(y = cumvar, group = 1), color = "#76B7B2",
+            linewidth = 0.8, linetype = "dashed") +
+  geom_hline(yintercept = 80, color = "grey50", linetype = "dotted") +
+  annotate("text", x = 8, y = 82, label = "80% cumulative variance",
+           size = 3, color = "grey50") +
+  labs(
+    title    = " Scree Plot —Lyon Elections PCA",
+    subtitle = "Blue bars = variance per PC | Red = variance | Dashed = cumulative",
+    x        = " Principal Component",
+    y        = "Variance Explained (%)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(plot.title = element_text(face = "bold"))
 
 
 # Plot 1: Compare PC1 variance explained across elections
@@ -431,6 +445,7 @@ ggplot(all_circles, aes(x = PC1, y = PC2, color = nuance)) +
         strip.text    = element_text(face = "bold"))
 
 ggsave("plot2_circles_comparison.png", width = 20, height = 13, dpi = 150)
+
 
 
 
