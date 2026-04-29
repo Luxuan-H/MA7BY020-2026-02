@@ -333,8 +333,13 @@ ggplot(variance_df, aes(x = reorder(PC, -variance), y = variance)) +
   theme_minimal(base_size = 12) +
   theme(plot.title = element_text(face = "bold"))
 
+#==============================================
 
-# Plot 1: Compare PC1 variance explained across elections
+#scree_per_election
+#==========
+
+
+# Plot 2: Compare PC1 variance explained across elections
 # This answers: which election had the most political polarization?
 
 variance_compare <- data.frame(
@@ -376,7 +381,7 @@ ggplot(variance_long, aes(x = election, y = variance, fill = component)) +
   theme_minimal(base_size = 12) +
   theme(plot.title = element_text(face = "bold"))
 
-# Plot 2: Correlation circles for all elections (2×3 grid)
+# Plot 3: Correlation circles for all elections (2×3 grid)
 # Check if variable directions are consistent across elections
 
 make_circle_data <- function(pca_result, label) {
@@ -416,7 +421,7 @@ color_palette <- c(
   "Divers"     = "#76B7B2"
 )
 
-ggplot(all_circles, aes(x = PC1, y = PC2, color = nuance)) +
+circles_comparison <- ggplot(all_circles, aes(x = PC1, y = PC2, color = nuance)) +
   # Unit circle
   annotate("path",
            x = cos(seq(0, 2*pi, length.out = 100)),
@@ -444,9 +449,108 @@ ggplot(all_circles, aes(x = PC1, y = PC2, color = nuance)) +
         legend.position = "bottom",
         strip.text    = element_text(face = "bold"))
 
-ggsave("plot2_circles_comparison.png", width = 20, height = 13, dpi = 150)
+print(circles_comparison)
+# ggsave("plot3_circles_comparison.png", width = 20, height = 13, dpi = 150)
 
+# ── Biplot───────────────────────────
+# 
 
+make_biplot <- function(pca_result, wide_df, title, filename) {
+
+  imp     <- summary(pca_result$pca)$importance
+  pc1_pct <- round(imp[2, 1] * 100, 1)
+  pc2_pct <- round(imp[2, 2] * 100, 1)
+
+  # Station scores
+  scores <- as.data.frame(pca_result$pca$x[, 1:2]) |>
+    dplyr::mutate(bureau = pca_result$bureaux)
+
+  #  Scale loadings to match score range
+  scale_factor <- max(abs(scores[, 1:2])) /
+    max(abs(pca_result$pca$rotation[, 1:2])) * 0.65
+
+  loadings <- as.data.frame(pca_result$pca$rotation[, 1:2]) |>
+    tibble::rownames_to_column("variable") |>
+    dplyr::mutate(
+      PC1s   = PC1 * scale_factor,
+      PC2s   = PC2 * scale_factor,
+      nuance = dplyr::case_when(
+        stringr::str_detect(variable, "extreme_gauche") ~ "Ext.gauche",
+        stringr::str_detect(variable, "gauche") &
+          !stringr::str_detect(variable, "extreme") ~ "Gauche",
+        stringr::str_detect(variable, "centre")         ~ "Centre",
+        stringr::str_detect(variable, "droite") &
+          !stringr::str_detect(variable, "extreme") ~ "Droite",
+        stringr::str_detect(variable, "extreme_droite") ~ "Ext.droite",
+        TRUE ~ "Divers"
+      ),
+      length = sqrt(PC1^2 + PC2^2)
+    ) |>
+    dplyr::group_by(nuance) |>
+    dplyr::slice_max(order_by = length, n = 2) |>
+    dplyr::ungroup()
+
+  p <- ggplot() +
+    geom_hline(yintercept = 0, color = "grey80", linetype = "dashed") +
+    geom_vline(xintercept = 0, color = "grey80", linetype = "dashed") +
+    # Station points (blue dots)
+    geom_point(data  = scores,
+               aes(x = PC1, y = PC2),
+               alpha = 0.3, color = "steelblue", size = 1.8) +
+    #  Extreme station labels
+    geom_text_repel(
+      data = scores |> dplyr::filter(
+        abs(PC1) > quantile(abs(PC1), 0.93) |
+        abs(PC2) > quantile(abs(PC2), 0.93)
+      ),
+      aes(x = PC1, y = PC2, label = bureau),
+      size = 2.5, color = "steelblue",
+      alpha = 0.8, max.overlaps = 15
+    ) +
+    # Political nuance arrows
+    geom_segment(data = loadings,
+                 aes(x = 0, y = 0,
+                     xend = PC1s, yend = PC2s,
+                     color = nuance),
+                 arrow     = arrow(length = unit(0.25, "cm")),
+                 linewidth = 1.1, alpha = 0.9) +
+    # Arrow labels
+    geom_text_repel(data = loadings,
+                    aes(x = PC1s, y = PC2s,
+                        label = variable, color = nuance),
+                    size = 3.2, fontface = "bold",
+                    max.overlaps = 30, show.legend = FALSE) +
+    scale_color_manual(values = color_palette, name = "Nuance") +
+    labs(
+      title    = title,
+      subtitle = paste0(
+        "Blue dots = polling stations | Arrows = political nuances | ",
+        "PC1: ", pc1_pct, "% | PC2: ", pc2_pct, "%"
+      ),
+      x = paste0("PC1 (", pc1_pct, "%)"),
+      y = paste0("PC2 (", pc2_pct, "%)")
+    ) +
+    theme_minimal(base_size = 13) +
+    theme(plot.title      = element_text(face = "bold", size = 15),
+          legend.position = "right")
+
+  print(p)
+ # ggsave(paste0("figures/", filename, ".png"),
+ #        plot = p, width = 11, height = 8, dpi = 150)
+  #cat(filename, "\n")
+}
+
+#  Generate Biplot for each election
+make_biplot(pca_eu14,    w_eu14,
+            "Biplot — Européennes 2014",        "biplot_eu14")
+make_biplot(pca_p17r1,   w_p17r1,
+            "Biplot — Présidentielles 2017 T1", "biplot_pres17")
+make_biplot(pca_leg17r1, w_leg17r1,
+            "Biplot — Législatives 2017 T1",    "biplot_leg17")
+make_biplot(pca_mun20r1, w_mun20r1,
+            "Biplot — Municipales 2020 T1",     "biplot_mun20")
+make_biplot(pca_p22r1,   w_p22r1,
+            "Biplot — Présidentielles 2022 T1", "biplot_pres22")
 
 
 
