@@ -16,9 +16,13 @@ library(stringr)
 library(arrow)
 library(tidyr)
 library(ggplot2)
-library(ggrepel)    #  avoid overlapping labels
+library(ggrepel)    
 library(corrplot) 
 library(tibble)
+library(CCA)      
+library(viridis)  
+library(mclust)     
+library(cluster)
 
 # ===================
 #list of datasets and download 
@@ -260,6 +264,40 @@ make_wide <- function(df, label) {
     dplyr::select(where(~ !all(. == 0)))
 }
 
+# Ensure all wide tables have the full set of 5 political bloc columns
+ensure_nuances <- function(wide_df, prefix) {
+  nuances <- c("extreme_gauche", "gauche", "centre", "droite", "extreme_droite")
+  expected_cols <- paste0(prefix, "_", nuances)
+  for (col in expected_cols) {
+    if (!col %in% names(wide_df)) {
+      message("Adding missing column: ", col)
+      wide_df[[col]] <- 0
+    }
+  }
+  wide_df
+}
+
+w_eu14    <- ensure_nuances(w_eu14,    "eu14")
+w_p17r1   <- ensure_nuances(w_p17r1,   "p17r1")
+w_p17r2   <- ensure_nuances(w_p17r2,   "p17r2")
+w_leg17r1 <- ensure_nuances(w_leg17r1, "leg17r1")
+w_leg17r2 <- ensure_nuances(w_leg17r2, "leg17r2")
+w_mun20r1 <- ensure_nuances(w_mun20r1, "mun20r1")
+w_mun20r2 <- ensure_nuances(w_mun20r2, "mun20r2")
+w_p22r1   <- ensure_nuances(w_p22r1,   "p22r1")
+w_p22r2   <- ensure_nuances(w_p22r2,   "p22r2")
+
+#prepare for cca
+to_share_matrix <- function(wide_df) {
+  # Remove duplicate bureaux before converting to matrix
+  wide_df <- wide_df |> dplyr::distinct(bureau, .keep_all = TRUE)
+  mat <- wide_df |>
+    dplyr::select(-bureau) |>
+    as.matrix()
+  rownames(mat) <- wide_df$bureau
+  mat
+}
+
 #  Generate wide tables
 w_eu14    <- make_wide(europe2014_clean,  "eu14")
 w_p17r1   <- make_wide(pres2017_r1_clean, "p17r1")
@@ -270,6 +308,18 @@ w_mun20r1 <- make_wide(mun2020_clean_r1,  "mun20r1")
 w_mun20r2 <- make_wide(mun2020_clean_r2,  "mun20r2")
 w_p22r1   <- make_wide(pres2022_r1_clean, "p22r1")
 w_p22r2   <- make_wide(pres2022_r2_clean, "p22r2")
+
+
+#prepare for cca
+sm_eu14    <- to_share_matrix(w_eu14)
+sm_p17r1   <- to_share_matrix(w_p17r1)
+sm_p17r2   <- to_share_matrix(w_p17r2)
+sm_leg17r1 <- to_share_matrix(w_leg17r1)
+sm_leg17r2 <- to_share_matrix(w_leg17r2)
+sm_mun20r1 <- to_share_matrix(w_mun20r1)
+sm_mun20r2 <- to_share_matrix(w_mun20r2)
+sm_p22r1   <- to_share_matrix(w_p22r1)
+sm_p22r2   <- to_share_matrix(w_p22r2)
 
 # Merge all elections
 all_elections <- w_eu14 |>
@@ -292,7 +342,7 @@ cat(" Variables:", ncol(all_elections_clean) - 1, "\n")
 #===============================================================================
 # Extract numeric matrix (remove bureau column)
 X <- all_elections_clean |>
-  select(-bureau) |>
+  dplyr::select(-bureau) |>
   as.matrix()
 
 # ────────────────────────────────────────────────
@@ -313,7 +363,7 @@ variance_df <- data.frame(
   PC       = paste0("PC", 1:length(pca$sdev)),
   variance = (pca$sdev^2) / sum(pca$sdev^2) * 100,  # convert to %
   cumvar   = cumsum((pca$sdev^2) / sum(pca$sdev^2) * 100)  # cumulative
-) |> slice(1:10)  #  show first 10
+) |> slice(1:6)  #  show first 6
 
 ggplot(variance_df, aes(x = reorder(PC, -variance), y = variance)) +
   geom_col(fill = "#4E79A7", alpha = 0.8) +
@@ -332,6 +382,7 @@ ggplot(variance_df, aes(x = reorder(PC, -variance), y = variance)) +
   ) +
   theme_minimal(base_size = 12) +
   theme(plot.title = element_text(face = "bold"))
+#meaning of PC1-PC2 
 
 #==============================================
 
@@ -341,6 +392,28 @@ ggplot(variance_df, aes(x = reorder(PC, -variance), y = variance)) +
 
 # Plot 2: Compare PC1 variance explained across elections
 # This answers: which election had the most political polarization?
+run_pca_single <- function(wide_df, tag) {
+  mat <- wide_df |>
+    dplyr::select(-bureau) |>
+    as.matrix()
+  
+  pca_res <- prcomp(mat, center = TRUE, scale. = TRUE)
+  imp <- summary(pca_res)$importance
+  
+  list(
+    pca    = pca_res,
+    bureaux = wide_df$bureau,
+    pc1    = round(imp[2, 1] * 100, 1),   # PC1  %
+    pc2    = round(imp[2, 2] * 100, 1),   # PC2  %
+    tag    = tag
+  )
+}
+
+pca_eu14    <- run_pca_single(w_eu14,    "EU 2014")
+pca_p17r1   <- run_pca_single(w_p17r1,   "Pres 2017 R1")
+pca_leg17r1 <- run_pca_single(w_leg17r1, "Leg 2017 R1")
+pca_mun20r1 <- run_pca_single(w_mun20r1, "Mun 2020 R1")
+pca_p22r1   <- run_pca_single(w_p22r1,   "Pres 2022 R1")
 
 variance_compare <- data.frame(
   election = c("EU 2014", "Pres 2017\nR1", "Leg 2017\nR1",
@@ -551,6 +624,193 @@ make_biplot(pca_mun20r1, w_mun20r1,
             "Biplot — Municipales 2020 T1",     "biplot_mun20")
 make_biplot(pca_p22r1,   w_p22r1,
             "Biplot — Présidentielles 2022 T1", "biplot_pres22")
+
+
+#========================
+
+# ============================================================
+# CCA
+# ============================================================
+
+run_cca <- function(m1, m2, tag1, tag2) {
+  
+  tag <- paste0(tag1, "_vs_", tag2)
+  
+  # Step 1: find common stations and align row order
+  common_ids <- intersect(rownames(m1), rownames(m2))
+  m1 <- m1[match(common_ids, rownames(m1)), , drop = FALSE]
+  m2 <- m2[match(common_ids, rownames(m2)), , drop = FALSE]
+  rownames(m1) <- common_ids
+  rownames(m2) <- common_ids
+  message("CCA ", tag, ": ", length(common_ids), " common polling stations")
+
+  # Step 2: drop last column to remove linear dependency (shares sum to 1)
+  m1_cca <- m1[, -ncol(m1), drop = FALSE]
+  m2_cca <- m2[, -ncol(m2), drop = FALSE]
+
+  # Step 3: filter zero-variance and NA/Inf columns for cancor() only
+  keep1 <- apply(m1_cca, 2, function(x)
+    !any(is.na(x) | is.nan(x) | is.infinite(x)) && var(x) > 0)
+  keep2 <- apply(m2_cca, 2, function(x)
+    !any(is.na(x) | is.nan(x) | is.infinite(x)) && var(x) > 0)
+  m1_cca <- m1_cca[, keep1, drop = FALSE]
+  m2_cca <- m2_cca[, keep2, drop = FALSE]
+
+  message("  m1 valid columns (", ncol(m1_cca), "): ",
+          paste(colnames(m1_cca), collapse = ", "))
+  message("  m2 valid columns (", ncol(m2_cca), "): ",
+          paste(colnames(m2_cca), collapse = ", "))
+
+  # Step 4: skip if either matrix has 0 columns
+  if (ncol(m1_cca) == 0 || ncol(m2_cca) == 0) {
+    warning("CCA ", tag, " skipped: no valid columns after filtering.")
+    return(invisible(NULL))
+  }
+
+  # Step 5: run CCA
+  cca <- stats::cancor(m1_cca, m2_cca)
+
+  # Align coefficient directions for interpretability
+  for (d in seq_along(cca$cor)) {
+    f <- sign(sum(cca$xcoef[, d] * cca$ycoef[, d]))
+    cca$xcoef[, d] <- cca$xcoef[, d] * f
+    cca$ycoef[, d] <- cca$ycoef[, d] * f
+  }
+
+  # Step 6: compute canonical scores using filtered matrices
+  n_can <- min(2, ncol(cca$xcoef), ncol(cca$ycoef))
+  U <- m1_cca %*% cca$xcoef[, seq_len(n_can), drop = FALSE]
+  V <- m2_cca %*% cca$ycoef[, seq_len(n_can), drop = FALSE]
+
+  # Step 7: correlate full matrices with canonical scores (all blocs shown in plot)
+  cor_mat1 <- cor(m1, U)
+  colnames(cor_mat1) <- paste0("dim", seq_len(n_can))
+  cor_mat2 <- cor(m2, V)
+  colnames(cor_mat2) <- paste0("dim", seq_len(n_can))
+
+  # If only one canonical dimension, add dim2 = 0 so ggplot can render
+  if (!"dim2" %in% colnames(cor_mat1)) {
+    cor_mat1 <- cbind(cor_mat1, dim2 = 0)
+    cor_mat2 <- cbind(cor_mat2, dim2 = 0)
+  }
+
+  df_plot <- dplyr::bind_rows(
+    as.data.frame(cor_mat1) |>
+      tibble::rownames_to_column("variable") |>
+      dplyr::mutate(election = tag1),
+    as.data.frame(cor_mat2) |>
+      tibble::rownames_to_column("variable") |>
+      dplyr::mutate(election = tag2)
+  ) |>
+  dplyr::mutate(
+    nuance_raw = stringr::str_remove(variable, "^[^_]+_"),
+    nuance = dplyr::case_when(
+      stringr::str_detect(nuance_raw, "extreme_gauche")                      ~ "Ext.gauche",
+      stringr::str_detect(nuance_raw, "gauche") &
+        !stringr::str_detect(nuance_raw, "extreme")                          ~ "Gauche",
+      stringr::str_detect(nuance_raw, "centre")                              ~ "Centre",
+      stringr::str_detect(nuance_raw, "droite") &
+        !stringr::str_detect(nuance_raw, "extreme")                          ~ "Droite",
+      stringr::str_detect(nuance_raw, "extreme_droite")                      ~ "Ext.droite",
+      TRUE                                                                   ~ "Divers"
+    )
+  )
+
+  circle <- tibble::tibble(
+    x = cos(seq(0, 2 * pi, length.out = 300)),
+    y = sin(seq(0, 2 * pi, length.out = 300))
+  )
+
+  color_palette <- c(
+    "Ext.gauche" = "#B22222", "Gauche" = "#E15759",
+    "Centre"     = "#F28E2B", "Droite" = "#4E79A7",
+    "Ext.droite" = "#1a1a6e", "Divers" = "#76B7B2"
+  )
+
+  p <- ggplot2::ggplot(
+    df_plot, ggplot2::aes(x = dim1, y = dim2, colour = nuance)
+  ) +
+    ggplot2::geom_path(
+      data = circle,
+      ggplot2::aes(x = x, y = y),
+      colour = "grey70", inherit.aes = FALSE
+    ) +
+    ggplot2::geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+    ggplot2::geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+    ggplot2::geom_segment(
+      ggplot2::aes(x = 0, y = 0, xend = dim1, yend = dim2),
+      arrow = ggplot2::arrow(length = ggplot2::unit(0.15, "cm")),
+      linewidth = 0.8
+    ) +
+    ggrepel::geom_text_repel(
+      ggplot2::aes(label = variable),
+      size = 3.5, fontface = "bold",
+      max.overlaps = 20, show.legend = FALSE
+    ) +
+    ggplot2::facet_wrap(~ election) +
+    ggplot2::scale_color_manual(values = color_palette, name = "Nuance") +
+    ggplot2::coord_fixed(xlim = c(-1.05, 1.05), ylim = c(-1.05, 1.05)) +
+    ggplot2::labs(
+      title    = paste0("CCA — ", tag),
+      subtitle = paste0(
+        "r1 = ", round(cca$cor[1], 3),
+        " | r2 = ", round(cca$cor[2], 3)
+      ),
+      x = paste0("Canonical dim 1  (r = ", round(cca$cor[1], 3), ")"),
+      y = paste0("Canonical dim 2  (r = ", round(cca$cor[2], 3), ")")
+    ) +
+    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme(legend.position = "bottom")
+
+  print(p)
+
+  message("CCA done: ", tag,
+          " | r1 = ", round(cca$cor[1], 3),
+          " | r2 = ", round(cca$cor[2], 3))
+
+  invisible(list(cca = cca, plot = p, n_stations = length(common_ids)))
+}
+
+# ============================================================
+# Run CCA
+# ============================================================
+
+# Round consistency — municipales only (round 2 retains multiple blocs)
+cca_mun20_rounds <- run_cca(sm_mun20r1, sm_mun20r2, "mun20r1", "mun20r2")
+
+# Cross-year comparison (round 1 only)
+cca_pres_years   <- run_cca(sm_p17r1,   sm_p22r1,   "p17r1",   "p22r1")
+cca_p17_leg17    <- run_cca(sm_p17r1,   sm_leg17r1, "p17r1",   "leg17r1")
+
+# Cross-election type (round 1 only)
+cca_eu14_p17r1   <- run_cca(sm_eu14,    sm_p17r1,   "eu14",    "p17r1")
+cca_eu14_mun20   <- run_cca(sm_eu14,    sm_mun20r1, "eu14",    "mun20r1")
+
+# Summary table — only include comparisons that were actually run
+cca_summary <- tibble::tibble(
+  comparison = c(
+    "mun20 R1 vs R2",
+    "pres 2017 vs 2022",
+    "pres 2017 vs leg 2017",
+    "eu14 vs pres 2017",
+    "eu14 vs mun20"
+  ),
+  r1 = round(c(
+    cca_mun20_rounds$cca$cor[1],
+    cca_pres_years$cca$cor[1],
+    cca_p17_leg17$cca$cor[1],
+    cca_eu14_p17r1$cca$cor[1],
+    cca_eu14_mun20$cca$cor[1]
+  ), 3),
+  n_stations = c(
+    cca_mun20_rounds$n_stations,
+    cca_pres_years$n_stations,
+    cca_p17_leg17$n_stations,
+    cca_eu14_p17r1$n_stations,
+    cca_eu14_mun20$n_stations
+  )
+)
+print(cca_summary)
 
 
 
