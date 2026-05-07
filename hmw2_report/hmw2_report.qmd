@@ -309,7 +309,6 @@ w_mun20r2 <- make_wide(mun2020_clean_r2,  "mun20r2")
 w_p22r1   <- make_wide(pres2022_r1_clean, "p22r1")
 w_p22r2   <- make_wide(pres2022_r2_clean, "p22r2")
 
-
 #prepare for cca
 sm_eu14    <- to_share_matrix(w_eu14)
 sm_p17r1   <- to_share_matrix(w_p17r1)
@@ -526,7 +525,7 @@ print(circles_comparison)
 # ggsave("plot3_circles_comparison.png", width = 20, height = 13, dpi = 150)
 
 # ── Biplot───────────────────────────
-# 
+# PLOT 4/5/6/7— Biplots (one per election, 5 total)
 
 make_biplot <- function(pca_result, wide_df, title, filename) {
 
@@ -629,7 +628,7 @@ make_biplot(pca_p22r1,   w_p22r1,
 #========================
 
 # ============================================================
-# CCA
+#  II. CCA — CANONICAL CORRELATION ANALYSIS
 # ============================================================
 
 run_cca <- function(m1, m2, tag1, tag2) {
@@ -727,6 +726,7 @@ run_cca <- function(m1, m2, tag1, tag2) {
     "Ext.droite" = "#1a1a6e", "Divers" = "#76B7B2"
   )
 
+#Plot 9/10/11/12/13: CCA correlation circle plot  
   p <- ggplot2::ggplot(
     df_plot, ggplot2::aes(x = dim1, y = dim2, colour = nuance)
   ) +
@@ -772,7 +772,7 @@ run_cca <- function(m1, m2, tag1, tag2) {
 }
 
 # ============================================================
-# Run CCA
+# RUN CCA — 5 comparisons selected for research relevance
 # ============================================================
 
 # Round consistency — municipales only (round 2 retains multiple blocs)
@@ -834,7 +834,7 @@ X_cluster <- cbind(
 )
 cat("Clustering matrix:", nrow(X_cluster), "stations x", ncol(X_cluster), "variables\n")
 
-# ---- Silhouette analysis to choose optimal k ----
+# PLOT 14 — Silhouette Analysis
 sil_scores <- sapply(2:7, function(k) {
   set.seed(42)
   km  <- kmeans(X_cluster, centers = k, nstart = 25)
@@ -861,7 +861,7 @@ ggplot2::ggplot(sil_df, ggplot2::aes(x = k, y = silhouette)) +
   ) +
   ggplot2::theme_minimal(base_size = 13)
 
-# ---- K-means: compare different k and initializations ----
+# K-MEANS CLUSTERING
 set.seed(42)
 km_k2 <- kmeans(X_cluster, centers = 2,      nstart = 25)
 km_k3 <- kmeans(X_cluster, centers = 3,      nstart = 25)
@@ -879,10 +879,10 @@ cat("ARI: single init 2 vs best (nstart=25):",
     round(mclust::adjustedRandIndex(km_init2$cluster, km_best$cluster), 3), "\n")
 # High ARI = kmeans result is stable regardless of initialization
 
-# ---- Visualize k-means on PCA plane ----
-# Use the combined PCA (all elections merged)
 pca_cluster <- prcomp(X_cluster, center = TRUE, scale. = TRUE)
 
+
+#PLOT 15/16 — K-means Clusters on PCA Plane (2 plots: k=2, k=3)
 plot_kmeans_pca <- function(km_result, pca_res, title) {
   df <- as.data.frame(pca_res$x[, 1:2]) |>
     dplyr::mutate(cluster = factor(km_result$cluster,
@@ -904,7 +904,7 @@ plot_kmeans_pca <- function(km_result, pca_res, title) {
 plot_kmeans_pca(km_k2,  pca_cluster, paste0("K-means k=2 on PCA plane"))
 plot_kmeans_pca(km_k3,  pca_cluster, paste0("K-means k=3 on PCA plane"))
 
-# ---- Cluster profile: mean political bloc share per cluster ----
+## PLOT17 — Cluster Political Profile (heatmap)
 plot_cluster_profile <- function(km_result, title) {
   BLOCS <- c("extreme_gauche", "gauche", "centre", "droite", "extreme_droite")
 
@@ -994,6 +994,45 @@ ari_results <- tibble::tibble(
 )
 print(ari_results)
 
+#
+# ============================================================
+# Step 1: Download the 3 new datasets
+# ============================================================
+
+# Euro 2024
+download.file(
+  "https://www.data.gouv.fr/api/1/datasets/r/cc1883d9-1265-4365-b754-fb6aef22d82e",
+  "data_raw/euro2024.csv", mode = "wb"
+)
+
+# Legislative 2024 Round 1 (response variable)
+download.file(
+  "https://www.data.gouv.fr/api/1/datasets/r/6813fb28-7ec0-42ff-a528-2bc3d82d7dcd",
+  "data_raw/leg2024_r1.csv", mode = "wb"
+)
+
+# Legislative 2024 Round 2
+download.file(
+  "https://www.data.gouv.fr/api/1/datasets/r/ca974f04-cfd9-4da8-8554-4a868a09c6c2",
+  "data_raw/leg2024_r2.csv", mode = "wb"
+)
+
+# ============================================================
+# Step 2: Inspect column names BEFORE cleaning
+# Run this and paste the output back to me
+# ============================================================
+euro2024_raw  <- read.csv("data_raw/euro2024.csv",  sep = ";", nrows = 3)
+leg2024_r1_raw <- read.csv("data_raw/leg2024_r1.csv", sep = ";", nrows = 3)
+
+cat("=== EURO 2024 COLUMNS ===\n")
+print(colnames(euro2024_raw))
+cat("\n=== LEG 2024 R1 COLUMNS ===\n")
+print(colnames(leg2024_r1_raw))
+
+cat("\n=== EURO 2024 FIRST ROW ===\n")
+print(euro2024_raw[1, 1:10])
+cat("\n=== LEG 2024 R1 FIRST ROW ===\n")
+print(leg2024_r1_raw[1, 1:10])
 
 
 ```
