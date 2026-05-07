@@ -812,6 +812,188 @@ cca_summary <- tibble::tibble(
 )
 print(cca_summary)
 
+# IV. Clustering
+# ============================================================
+# Goal: group polling stations by voting behaviour
+# Input: combined share matrix from the most recent elections
+# Methods: K-means (multiple k + initializations) +
+#          Hierarchical (multiple distances + linkage methods)
+
+# ---- Build combined feature matrix for clustering ----
+# Use p17r1, mun20r1, p22r1 — most informative and closest to leg2024
+common_bureaux <- Reduce(intersect, list(
+  rownames(sm_p17r1),
+  rownames(sm_mun20r1),
+  rownames(sm_p22r1)
+))
+
+X_cluster <- cbind(
+  sm_p17r1[common_bureaux, ],
+  sm_mun20r1[common_bureaux, ],
+  sm_p22r1[common_bureaux, ]
+)
+cat("Clustering matrix:", nrow(X_cluster), "stations x", ncol(X_cluster), "variables\n")
+
+# ---- Silhouette analysis to choose optimal k ----
+sil_scores <- sapply(2:7, function(k) {
+  set.seed(42)
+  km  <- kmeans(X_cluster, centers = k, nstart = 25)
+  sil <- cluster::silhouette(km$cluster, dist(X_cluster))
+  mean(sil[, 3])
+})
+
+sil_df <- tibble::tibble(k = 2:7, silhouette = sil_scores)
+best_k  <- sil_df$k[which.max(sil_df$silhouette)]
+cat("Optimal k by silhouette:", best_k, "\n")
+
+ggplot2::ggplot(sil_df, ggplot2::aes(x = k, y = silhouette)) +
+  ggplot2::geom_line(colour = "steelblue", linewidth = 1) +
+  ggplot2::geom_point(colour = "steelblue", size = 3) +
+  ggplot2::geom_vline(xintercept = best_k,
+                      colour = "red", linetype = "dashed") +
+  ggplot2::annotate("text", x = best_k + 0.15, y = max(sil_scores) - 0.005,
+                    label = paste0("best k = ", best_k),
+                    colour = "red", hjust = 0) +
+  ggplot2::labs(
+    title = "Silhouette analysis — optimal number of clusters",
+    x = "Number of clusters k",
+    y = "Mean silhouette width (higher = better)"
+  ) +
+  ggplot2::theme_minimal(base_size = 13)
+
+# ---- K-means: compare different k and initializations ----
+set.seed(42)
+km_k2 <- kmeans(X_cluster, centers = 2,      nstart = 25)
+km_k3 <- kmeans(X_cluster, centers = 3,      nstart = 25)
+km_k4 <- kmeans(X_cluster, centers = best_k, nstart = 25)
+km_k5 <- kmeans(X_cluster, centers = 5,      nstart = 25)
+
+# Compare different random initializations at optimal k
+set.seed(1);  km_init1 <- kmeans(X_cluster, centers = best_k, nstart = 1)
+set.seed(99); km_init2 <- kmeans(X_cluster, centers = best_k, nstart = 1)
+set.seed(42); km_best  <- kmeans(X_cluster, centers = best_k, nstart = 25)
+
+cat("ARI: single init 1 vs best (nstart=25):",
+    round(mclust::adjustedRandIndex(km_init1$cluster, km_best$cluster), 3), "\n")
+cat("ARI: single init 2 vs best (nstart=25):",
+    round(mclust::adjustedRandIndex(km_init2$cluster, km_best$cluster), 3), "\n")
+# High ARI = kmeans result is stable regardless of initialization
+
+# ---- Visualize k-means on PCA plane ----
+# Use the combined PCA (all elections merged)
+pca_cluster <- prcomp(X_cluster, center = TRUE, scale. = TRUE)
+
+plot_kmeans_pca <- function(km_result, pca_res, title) {
+  df <- as.data.frame(pca_res$x[, 1:2]) |>
+    dplyr::mutate(cluster = factor(km_result$cluster,
+                                   labels = paste0("C", seq_len(max(km_result$cluster)))))
+  imp <- summary(pca_res)$importance
+  ggplot2::ggplot(df, ggplot2::aes(x = PC1, y = PC2, colour = cluster)) +
+    ggplot2::geom_point(alpha = 0.45, size = 1.5) +
+    ggplot2::stat_ellipse(level = 0.80, linewidth = 0.8) +
+    ggplot2::labs(
+      title    = title,
+      subtitle = "Ellipses show 80% confidence regions per cluster",
+      x = paste0("PC1 (", round(imp[2,1]*100, 1), "%)"),
+      y = paste0("PC2 (", round(imp[2,2]*100, 1), "%)"),
+      colour = "Cluster"
+    ) +
+    ggplot2::theme_minimal(base_size = 13)
+}
+
+plot_kmeans_pca(km_k2,  pca_cluster, paste0("K-means k=2 on PCA plane"))
+plot_kmeans_pca(km_k3,  pca_cluster, paste0("K-means k=3 on PCA plane"))
+
+# ---- Cluster profile: mean political bloc share per cluster ----
+plot_cluster_profile <- function(km_result, title) {
+  BLOCS <- c("extreme_gauche", "gauche", "centre", "droite", "extreme_droite")
+
+  # Average share per cluster, only using p22r1 columns for readability
+  cols_p22 <- colnames(X_cluster)[grepl("p22r1", colnames(X_cluster))]
+
+  profile <- as.data.frame(X_cluster[, cols_p22]) |>
+    dplyr::mutate(cluster = factor(km_result$cluster,
+                                   labels = paste0("Cluster ", seq_len(max(km_result$cluster))))) |>
+    dplyr::group_by(cluster) |>
+    dplyr::summarise(dplyr::across(dplyr::everything(), mean), .groups = "drop") |>
+    tidyr::pivot_longer(-cluster, names_to = "bloc", values_to = "share") |>
+    dplyr::mutate(bloc = stringr::str_remove(bloc, "^p22r1_"),
+                  bloc = factor(bloc, levels = c(
+                    "extreme_gauche", "gauche", "centre",
+                    "droite", "extreme_droite")))
+
+  ggplot2::ggplot(profile, ggplot2::aes(x = bloc, y = cluster, fill = share)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.8) +
+    ggplot2::geom_text(ggplot2::aes(label = scales::percent(share, accuracy = 0.1)),
+                       size = 3.5) +
+    ggplot2::scale_fill_gradient(low = "#f7fbff", high = "#2171b5",
+                                  labels = scales::percent_format()) +
+    ggplot2::labs(
+      title = title,
+      x     = "Political bloc (left → right)",
+      y     = "Cluster",
+      fill  = "Mean share (Pres 2022 R1)"
+    ) +
+    ggplot2::theme_minimal(base_size = 13) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 30, hjust = 1))
+}
+
+plot_cluster_profile(km_k4, paste0("Cluster profiles — k=", best_k))
+
+# ---- Hierarchical clustering: compare distances and linkage methods ----
+run_hclust <- function(dist_method, link_method, k, tag) {
+  d  <- dist(X_cluster, method = dist_method)
+  hc <- hclust(d, method = link_method)
+  clusters <- cutree(hc, k = k)
+
+  # Plot dendrogram
+  plot(hc, labels = FALSE,
+       main = paste0("Dendrogram — dist=", dist_method,
+                     " | link=", link_method, " | k=", k),
+       xlab = "", sub = "")
+  rect.hclust(hc, k = k, border = "red")
+
+  message("HClust done: dist=", dist_method,
+          " | link=", link_method, " | k=", k,
+          " | tag=", tag)
+  invisible(clusters)
+}
+
+# Test 4 combinations as required
+hc_ward      <- run_hclust("euclidean", "ward.D2",  best_k, "ward")
+hc_complete  <- run_hclust("euclidean", "complete", best_k, "complete")
+hc_average   <- run_hclust("euclidean", "average",  best_k, "average")
+hc_manhattan <- run_hclust("manhattan", "ward.D2",  best_k, "manhattan_ward")
+
+# ---- ARI comparison: all methods against each other ----
+ari_results <- tibble::tibble(
+  comparison = c(
+    "kmeans vs hclust ward",
+    "kmeans vs hclust complete",
+    "kmeans vs hclust average",
+    "kmeans vs hclust manhattan+ward",
+    "hclust ward vs complete",
+    "hclust ward vs average",
+    "hclust ward vs manhattan+ward"
+  ),
+  ARI = round(c(
+    mclust::adjustedRandIndex(km_k4$cluster,  hc_ward),
+    mclust::adjustedRandIndex(km_k4$cluster,  hc_complete),
+    mclust::adjustedRandIndex(km_k4$cluster,  hc_average),
+    mclust::adjustedRandIndex(km_k4$cluster,  hc_manhattan),
+    mclust::adjustedRandIndex(hc_ward,         hc_complete),
+    mclust::adjustedRandIndex(hc_ward,         hc_average),
+    mclust::adjustedRandIndex(hc_ward,         hc_manhattan)
+  ), 3),
+  interpretation = dplyr::case_when(
+    ARI > 0.8 ~ "Very similar",
+    ARI > 0.6 ~ "Similar",
+    ARI > 0.4 ~ "Moderate",
+    TRUE      ~ "Weak"
+  )
+)
+print(ari_results)
+
 
 
 ```
