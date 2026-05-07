@@ -1019,7 +1019,6 @@ download.file(
 
 # ============================================================
 # Step 2: Inspect column names BEFORE cleaning
-# Run this and paste the output back to me
 # ============================================================
 euro2024_raw  <- read.csv("data_raw/euro2024.csv",  sep = ";", nrows = 3)
 leg2024_r1_raw <- read.csv("data_raw/leg2024_r1.csv", sep = ";", nrows = 3)
