@@ -994,46 +994,352 @@ ari_results <- tibble::tibble(
 )
 print(ari_results)
 
+#Project hierarchical clustering results onto 
+# the PCA plane
+# ============================================================
+
+plot_hclust_pca <- function(hclust_vector, pca_res, title) {
+  # hclust_vector is the integer vector returned by cutree(), e.g., hc_ward
+  
+  df <- as.data.frame(pca_res$x[, 1:2]) |>
+    dplyr::mutate(cluster = factor(hclust_vector,
+                                   labels = paste0("C", seq_len(max(hclust_vector)))))
+  imp <- summary(pca_res)$importance
+  
+  ggplot2::ggplot(df, ggplot2::aes(x = PC1, y = PC2, colour = cluster)) +
+    ggplot2::geom_point(alpha = 0.45, size = 1.5) +
+    ggplot2::stat_ellipse(level = 0.80, linewidth = 0.8) +
+    ggplot2::labs(
+      title    = title,
+      subtitle = "Ellipses show 80% confidence regions per cluster",
+      x = paste0("PC1 (", round(imp[2,1]*100, 1), "%)"),
+      y = paste0("PC2 (", round(imp[2,2]*100, 1), "%)"),
+      colour = "Cluster"
+    ) +
+    ggplot2::theme_minimal(base_size = 13)
+}
+
+# ============================================================
+# PLOTTING: Compare the distributions of the 4 hierarchical 
+# clustering methods on the PCA plane
+# ============================================================
+
+# Plot Ward method results (Euclidean distance)
+p_ward <- plot_hclust_pca(hc_ward, pca_cluster, "Hierarchical (Euclidean + Ward) on PCA plane")
+print(p_ward)
+
+# Plot Complete linkage method results (Euclidean distance)
+p_complete <- plot_hclust_pca(hc_complete, pca_cluster, "Hierarchical (Euclidean + Complete) on PCA plane")
+print(p_complete)
+
+# Plot Average linkage method results (Euclidean distance)
+p_average <- plot_hclust_pca(hc_average, pca_cluster, "Hierarchical (Euclidean + Average) on PCA plane")
+print(p_average)
+
+# Plot Ward method results (Manhattan distance)
+p_manhattan <- plot_hclust_pca(hc_manhattan, pca_cluster, "Hierarchical (Manhattan + Ward) on PCA plane")
+print(p_manhattan)
+
 #
 # ============================================================
-# Step 1: Download the 3 new datasets
+# V. REGRESSION — Download, clean, and prepare 2024 data
 # ============================================================
 
-# Euro 2024
-download.file(
-  "https://www.data.gouv.fr/api/1/datasets/r/cc1883d9-1265-4365-b754-fb6aef22d82e",
-  "data_raw/euro2024.csv", mode = "wb"
+# ---- Load new datasets ----
+euro2024_raw   <- read.csv("data_raw/euro2024.csv",   sep = ";", encoding = "UTF-8")
+leg2024_r1_raw <- read.csv("data_raw/leg2024_r1.csv", sep = ";", encoding = "UTF-8")
+
+# ---- Filter Lyon only (code commune = 69123) ----
+euro2024_lyon    <- euro2024_raw   |> dplyr::filter(Code.commune == 69123)
+leg2024_r1_lyon  <- leg2024_r1_raw |> dplyr::filter(Code.commune == 69123)
+
+cat("Euro 2024 Lyon bureaux:", nrow(euro2024_lyon), "\n")
+cat("Leg 2024 R1 Lyon bureaux:", nrow(leg2024_r1_lyon), "\n")
+
+# ---- Inspect nuance codes ----
+# Euro 2024: nuances are in Nuance.liste.1, Nuance.liste.2, ...
+euro_nuances <- euro2024_lyon |>
+  dplyr::select(dplyr::matches("^Nuance\\.liste\\.")) |>
+  unlist() |> unique() |> sort()
+cat("Euro 2024 nuances:\n"); print(euro_nuances)
+
+# Leg 2024: nuances are in Nuance.candidat.1, Nuance.candidat.2, ...
+leg_nuances <- leg2024_r1_lyon |>
+  dplyr::select(dplyr::matches("^Nuance\\.candidat\\.")) |>
+  unlist() |> unique() |> sort()
+cat("Leg 2024 R1 nuances:\n"); print(leg_nuances)
+
+
+# ---- pivot_wider → long 的結構（確認nuance後補完）----
+
+# Euro 2024: pivot Nuance.liste.N + Voix.N → long format
+euro2024_long <- euro2024_lyon |>
+  dplyr::select(Code.BV,
+                dplyr::matches("^Nuance\\.liste\\.\\d+$"),
+                dplyr::matches("^Voix\\.\\d+$")) |>
+  tidyr::pivot_longer(
+    cols      = -Code.BV,
+    names_to  = c(".value", "num"),
+    names_pattern = "^(Nuance\\.liste|Voix)\\.(\\d+)$"
+  ) |>
+  dplyr::filter(!is.na(Nuance.liste), Voix > 0) |>
+  dplyr::mutate(
+    bureau = stringr::str_pad(as.character(Code.BV), 4, "left", "0"),
+    nuance = Nuance.liste,
+    votes  = Voix
+  ) |>
+  dplyr::select(bureau, nuance, votes)
+
+# Leg 2024 R1: same structure but column names differ
+leg2024_r1_long <- leg2024_r1_lyon |>
+  dplyr::select(Code.BV,
+                dplyr::matches("^Nuance\\.candidat\\.\\d+$"),
+                dplyr::matches("^Voix\\.\\d+$")) |>
+  tidyr::pivot_longer(
+    cols      = -Code.BV,
+    names_to  = c(".value", "num"),
+    names_pattern = "^(Nuance\\.candidat|Voix)\\.(\\d+)$"
+  ) |>
+  dplyr::filter(!is.na(Nuance.candidat), Voix > 0) |>
+  dplyr::mutate(
+    bureau = stringr::str_pad(as.character(Code.BV), 4, "left", "0"),
+    nuance = Nuance.candidat,
+    votes  = Voix
+  ) |>
+  dplyr::select(bureau, nuance, votes)
+
+# ---- Nuance mapping for Euro 2024 ----
+# Source: https://www.resultats-elections.interieur.gouv.fr
+nuances_mapping_euro2024 <- list(
+  extreme_gauche = list("LEXG", "LFI", "LCOM"),
+  gauche         = list("LDVG", "LUG", "LVEC", "LECO"),
+  centre         = list("LENS", "LREC"),
+  droite         = list("LDVD", "LLR"),
+  extreme_droite = list("LEXD", "LRN"),
+  divers         = list("LDIV")
 )
 
-# Legislative 2024 Round 1 (response variable)
-download.file(
-  "https://www.data.gouv.fr/api/1/datasets/r/6813fb28-7ec0-42ff-a528-2bc3d82d7dcd",
-  "data_raw/leg2024_r1.csv", mode = "wb"
+# ---- Nuance mapping for Leg 2024 R1 ----
+nuances_mapping_leg2024 <- list(
+  extreme_gauche = list("EXG"),
+  gauche         = list("UG", "ECO"),
+  centre         = list("ENS", "UDI", "REC"),
+  droite         = list("LR"),
+  extreme_droite = list("RN"),
+  divers         = list("DIV")
 )
 
-# Legislative 2024 Round 2
-download.file(
-  "https://www.data.gouv.fr/api/1/datasets/r/ca974f04-cfd9-4da8-8554-4a868a09c6c2",
-  "data_raw/leg2024_r2.csv", mode = "wb"
-)
+# ---- Pivot Euro 2024 to long format ----
+euro2024_long <- euro2024_lyon |>
+  dplyr::select(Code.BV,
+                dplyr::matches("^Nuance\\.liste\\.\\d+$"),
+                dplyr::matches("^Voix\\.\\d+$")) |>
+  tidyr::pivot_longer(
+    cols         = -Code.BV,
+    names_to     = c(".value", "num"),
+    names_pattern = "^(Nuance\\.liste|Voix)\\.(\\d+)$"
+  ) |>
+  dplyr::filter(!is.na(Nuance.liste), Voix > 0) |>
+  dplyr::mutate(
+    bureau = stringr::str_pad(as.character(Code.BV), 4, "left", "0"),
+    nuance = Nuance.liste,
+    votes  = Voix
+  ) |>
+  dplyr::select(bureau, nuance, votes) |>
+  replace_nuance(nuances_mapping_euro2024)
+
+# ---- Pivot Leg 2024 R1 to long format ----
+leg2024_r1_long <- leg2024_r1_lyon |>
+  dplyr::select(Code.BV,
+                dplyr::matches("^Nuance\\.candidat\\.\\d+$"),
+                dplyr::matches("^Voix\\.\\d+$")) |>
+  tidyr::pivot_longer(
+    cols         = -Code.BV,
+    names_to     = c(".value", "num"),
+    names_pattern = "^(Nuance\\.candidat|Voix)\\.(\\d+)$"
+  ) |>
+  dplyr::filter(!is.na(Nuance.candidat), Nuance.candidat != "", Voix > 0) |>
+  dplyr::mutate(
+    bureau = stringr::str_pad(as.character(Code.BV), 4, "left", "0"),
+    nuance = Nuance.candidat,
+    votes  = Voix
+  ) |>
+  dplyr::select(bureau, nuance, votes) |>
+  replace_nuance(nuances_mapping_leg2024)
+
+# ---- Convert to wide share tables ----
+w_euro2024   <- make_wide(euro2024_long,   "euro2024")
+w_leg2024_r1 <- make_wide(leg2024_r1_long, "leg2024")
+
+w_euro2024   <- ensure_nuances(w_euro2024,   "euro2024")
+w_leg2024_r1 <- ensure_nuances(w_leg2024_r1, "leg2024")
+
+cat("Euro 2024 bureaux:", nrow(w_euro2024), "\n")
+cat("Leg 2024 R1 bureaux:", nrow(w_leg2024_r1), "\n")
+
+# ---- Build regression dataset ----
+# Join all explanatory variables + response variable on bureau ID
+# Use only round 1 elections as explanatory variables
+reg_data <- w_leg2024_r1 |>
+  dplyr::inner_join(w_eu14,    by = "bureau") |>
+  dplyr::inner_join(w_p17r1,   by = "bureau") |>
+  dplyr::inner_join(w_leg17r1, by = "bureau") |>
+  dplyr::inner_join(w_mun20r1, by = "bureau") |>
+  dplyr::inner_join(w_p22r1,   by = "bureau") |>
+  dplyr::inner_join(w_euro2024, by = "bureau") |>
+  # Add cluster label from k-means as a categorical explanatory variable
+  dplyr::left_join(
+    tibble::tibble(
+      bureau  = names(km_k4$cluster),
+      cluster = factor(km_k4$cluster, labels = paste0("C", seq_len(max(km_k4$cluster))))
+    ),
+    by = "bureau"
+  ) |>
+  na.omit()
+
+cat("Regression dataset:", nrow(reg_data), "polling stations\n")
+cat("Variables:", ncol(reg_data), "\n")
 
 # ============================================================
-# Step 2: Inspect column names BEFORE cleaning
+# Run one linear regression per political bloc
+# Y = leg2024 bloc share
+# X = same bloc share across all past elections + cluster
 # ============================================================
-euro2024_raw  <- read.csv("data_raw/euro2024.csv",  sep = ";", nrows = 3)
-leg2024_r1_raw <- read.csv("data_raw/leg2024_r1.csv", sep = ";", nrows = 3)
 
-cat("=== EURO 2024 COLUMNS ===\n")
-print(colnames(euro2024_raw))
-cat("\n=== LEG 2024 R1 COLUMNS ===\n")
-print(colnames(leg2024_r1_raw))
+blocs <- c("extreme_gauche", "gauche", "centre", "droite", "extreme_droite")
 
-cat("\n=== EURO 2024 FIRST ROW ===\n")
-print(euro2024_raw[1, 1:10])
-cat("\n=== LEG 2024 R1 FIRST ROW ===\n")
-print(leg2024_r1_raw[1, 1:10])
+run_bloc_regression <- function(bloc, data) {
 
+  y_col <- paste0("leg2024_", bloc)
 
+  # Explanatory variables: same bloc from each past election + cluster
+  x_cols <- c(
+    paste0("eu14_",     bloc),
+    paste0("p17r1_",    bloc),
+    paste0("leg17r1_",  bloc),
+    paste0("mun20r1_",  bloc),
+    paste0("p22r1_",    bloc),
+    paste0("euro2024_", bloc),
+    "cluster"
+  )
+
+  # Keep only columns that exist in the data
+  x_cols <- x_cols[x_cols %in% colnames(data)]
+
+  formula <- as.formula(paste(y_col, "~", paste(x_cols, collapse = " + ")))
+  model   <- lm(formula, data = data)
+
+  list(bloc = bloc, model = model, summary = summary(model))
+}
+
+# Run all 5 models
+reg_models <- lapply(blocs, run_bloc_regression, data = reg_data)
+names(reg_models) <- blocs
+
+# ============================================================
+# PLOT: Regression results summary
+# R² per bloc + coefficient plot
+# ============================================================
+
+# ---- Table: R² and key statistics per bloc ----
+reg_summary <- tibble::tibble(
+  bloc    = blocs,
+  r2      = sapply(reg_models, function(m) round(summary(m$model)$r.squared, 3)),
+  adj_r2  = sapply(reg_models, function(m) round(summary(m$model)$adj.r.squared, 3)),
+  p_value = sapply(reg_models, function(m) {
+    f <- summary(m$model)$fstatistic
+    round(pf(f[1], f[2], f[3], lower.tail = FALSE), 4)
+  })
+) |>
+  dplyr::mutate(
+    fit_quality = dplyr::case_when(
+      r2 > 0.8 ~ "Excellent",
+      r2 > 0.6 ~ "Good",
+      r2 > 0.4 ~ "Moderate",
+      TRUE     ~ "Weak"
+    )
+  )
+
+print(reg_summary)
+
+# ---- Plot 1: R² comparison across blocs ----
+ggplot2::ggplot(reg_summary,
+                ggplot2::aes(x = reorder(bloc, r2), y = r2, fill = fit_quality)) +
+  ggplot2::geom_col(width = 0.6, alpha = 0.85) +
+  ggplot2::geom_text(ggplot2::aes(label = paste0("R²=", r2)),
+                     hjust = -0.1, size = 3.5, fontface = "bold") +
+  ggplot2::scale_fill_manual(
+  values = c("Excellent" = "#2E5F8A", "Good"     = "#5B8DB8",
+             "Moderate"  = "#A0BDD4", "Weak"     = "#6B7F8E"),
+  name = "Fit quality"
+  ) +
+  ggplot2::coord_flip(ylim = c(0, 1.05)) +
+  ggplot2::labs(
+    title    = "Regression R² per Political Bloc",
+    subtitle = "Response: Leg 2024 R1 | Explanatory: elections 2014–2024 + cluster",
+    x        = "Political bloc",
+    y        = "R² (proportion of variance explained)"
+  ) +
+  theme_minimal(base_size = 12) +
+theme(plot.title       = element_text(face = "bold"),
+      plot.subtitle    = element_text(colour = "grey40"),
+      legend.position  = "right",
+      panel.grid.minor = element_blank())
+
+# ---- Plot 2: Coefficient plot for each bloc ----
+# 
+
+plot_coefficients <- function(reg_model_item) {
+
+  coef_df <- broom::tidy(reg_model_item$model, conf.int = TRUE) |>
+    dplyr::filter(term != "(Intercept)") |>
+    dplyr::mutate(
+      significant = p.value < 0.05,
+      term        = stringr::str_remove(term, "cluster")
+    )
+
+  ggplot2::ggplot(coef_df,
+                  ggplot2::aes(x = reorder(term, estimate),
+                               y = estimate,
+                               colour = significant)) +
+    ggplot2::geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+    ggplot2::geom_pointrange(
+      ggplot2::aes(ymin = conf.low, ymax = conf.high),
+      linewidth = 0.8, size = 0.6
+    ) +
+    ggplot2::scale_colour_manual(
+      values = c("TRUE" = "#4E79A7", "FALSE" = "grey70"),
+      labels = c("TRUE" = "p < 0.05", "FALSE" = "p ≥ 0.05"),
+      name   = "Significance"
+    ) +
+    ggplot2::coord_flip() +
+    ggplot2::labs(
+      title    = paste0("Coefficients — ", reg_model_item$bloc),
+      subtitle = paste0("R² = ", round(summary(reg_model_item$model)$r.squared, 3)),
+      x        = "",
+      y        = "Coefficient (95% CI)"
+    ) +
+   ggplot2::theme_minimal(base_size = 12) +
+ggplot2::theme(plot.title       = ggplot2::element_text(face = "bold"),
+               plot.subtitle    = ggplot2::element_text(colour = "grey40"),
+               legend.position  = "right",
+               panel.grid.minor = ggplot2::element_blank())
+}
+
+# Install broom if needed
+if (!requireNamespace("broom", quietly = TRUE)) install.packages("broom")
+library(broom)
+
+# Generate one coefficient plot per bloc
+lapply(reg_models, plot_coefficients) |> invisible()
+
+# ---- Print full model summaries ----
+for (bloc in blocs) {
+  cat("\n", rep("=", 60), "\n")
+  cat("MODEL:", bloc, "\n")
+  cat(rep("=", 60), "\n")
+  print(summary(reg_models[[bloc]]$model))
+}
 ```
 
 ## 
