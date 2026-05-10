@@ -1,33 +1,115 @@
 ---
-title: "hmw2_report"
+title: "Electoral Geography of Lyon: A Multivariate Analysis (2014–2022)"
+author: "Luxuan HUANG"
+format: html
 ---
 
-## Quarto
+```{r setup, message=FALSE, warning=FALSE, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = TRUE)
+```
 
-Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+# 1 — Introduction
+
+This report applies matrix factorisation methods (PCA, CCA) and clustering
+algorithms to analyse the voting behaviour of polling stations in Lyon across
+nine elections held between 2014 and 2022. The goal is to identify the main
+axes of political variation, measure the stability of voting geography across
+elections, and group polling stations by their political profiles — providing a
+foundation for the regression analysis that will predict the first round of the
+2024 legislative elections.
+
+The remainder of this section describes the data collection and preparation
+pipeline. Section 2 presents the analyses in three parts: PCA, CCA, and
+clustering.
+
+## 1.1 — Required packages
 
 ## Running Code
 
+```{r, echo=TRUE, eval=FALSE}
+auto_pkgs <- c(
+  "stringi", "dplyr", "stringr", "arrow", "tidyr", "ggplot2",
+  "ggrepel", "corrplot", "tibble", "CCA", "viridis", "mclust", "cluster"
+)
+install.packages(setdiff(auto_pkgs, installed.packages()[, "Package"]))
+invisible(lapply(auto_pkgs, library, character.only = TRUE))
+```
+
+## 1.2 — Data pipeline
+
+All nine datasets are downloaded as `.parquet` files from
+[hub.huwise.com](https://hub.huwise.com) (the OpenDataSoft platform operated by
+the City of Lyon) and saved locally in `data_raw/`. Files already present are
+not re-downloaded.
+
+The elections covered are:
+
+- **European Parliament 2014** — list-based proportional election
+- **Presidential 2017** — rounds 1 and 2
+- **Legislative 2017** — rounds 1 and 2
+- **Municipal 2020** — rounds 1 and 2
+- **Presidential 2022** — rounds 1 and 2
+
+These elections were chosen because they span a period of eight years, cover
+all major French election types (presidential, legislative, municipal,
+European), and provide enough temporal depth to observe shifts in voting
+geography. Together they give 9 datasets totalling 294 polling stations.
+
+Raw candidate names and party codes differ across datasets. All candidates are
+mapped to one of five unified political blocs:
+
+| Bloc | Description |
+|------|-------------|
+| `extreme_gauche` | Far left (e.g. Arthaud, Poutou, Roussel) |
+| `gauche` | Left (e.g. Hamon, Mélenchon, Jadot) |
+| `centre` | Centre (e.g. Macron, Lassalle) |
+| `droite` | Right (e.g. Fillon, Pécresse, Dupont-Aignan) |
+| `extreme_droite` | Far right (e.g. Le Pen, Zemmour) |
+
+These categories were defined by consulting the French Ministry of the
+Interior's political affiliation records at the time of each election. The
+classification involves a degree of subjectivity: some candidates are difficult
+to categorise (e.g. Dupont-Aignan oscillates between *droite* and
+*extreme_droite*), and political affiliations shift over time. This limitation
+is acknowledged throughout the analysis.
+
+For each election, raw vote counts are aggregated by polling station and bloc,
+then converted to **vote shares** (proportions summing to 1 per station). This
+produces one wide table per election, where each row is a polling station and
+each column is a bloc's vote share.
+
+
+# 2 — Data Analysis
+
+## 2.1 — PCA: Principal Component Analysis
+
+PCA was applied to measure the main dimensions of political variation across
+Lyon's polling stations. For each election, a matrix of vote shares
+(stations × blocs) was constructed, centred, and scaled before running PCA.
+
+In general, the first two principal components together explain between 60 and
+80% of the variance, consistently capturing two political dimensions:
+
+- **PC1 (~40% variance)** — the classic left–right spectrum.
+  `gauche` and `extreme_gauche` load negatively; `droite` and `centre` load
+  positively. This structure is stable across all five elections.
+- **PC2 (~26% variance)** — a moderate vs extreme axis.
+  `extreme_droite` loads negatively; `centre` (particularly in round 2 results)
+  loads positively.
+
+### 2.1.1 — Combined Scree Plot (all elections merged)# 2 — Data Analysis
+
+
+
+
+
 ```{r}
-
-library(stringi)
-library(dplyr)
-library(stringr)
-library(arrow)
-library(tidyr)
-library(ggplot2)
-library(ggrepel)    
-library(corrplot) 
-library(tibble)
-library(CCA)      
-library(viridis)  
-library(mclust)     
-library(cluster)
-
 # ===================
 #list of datasets and download 
 # from hub.huwise.com (new name of opendatasoft)
 # ===================
+
+
 
 if (!dir.exists("data_raw")) dir.create("data_raw")
 
