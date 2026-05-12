@@ -13,23 +13,18 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, cache = TR
 This report applies matrix factorisation methods (PCA, CCA) and clustering
 algorithms to analyse the voting behaviour of polling stations in Lyon across
 nine elections held between 2014 and 2022. The goal is to identify the main
-axes of political variation, measure the stability of voting geography across
-elections, and group polling stations by their political profiles — providing a
-foundation for the regression analysis that will predict the first round of the
-2024 legislative elections.
+axes of political variation across Lyon's 294 polling stations, to measure the stability of voting geography across elections of different types and different years, and to group stations by their political profiles — providing a structured foundation for the regression analysis that predicts the first-round results of the 2024 legislative elections.
 
 The remainder of this section describes the data collection and preparation
-pipeline. Section 2 presents the analyses in three parts: PCA, CCA, and
-clustering.
+pipeline. Section 2 presents the analyses in four parts: PCA, CCA, clustering, and regression.
 
 ## 1.1 — Required packages
-
-## Running Code
 
 ```{r, echo=TRUE, eval=FALSE}
 auto_pkgs <- c(
   "stringi", "dplyr", "stringr", "arrow", "tidyr", "ggplot2",
-  "ggrepel", "corrplot", "tibble", "CCA", "viridis", "mclust", "cluster"
+  "ggrepel", "corrplot", "tibble", "CCA", "viridis", "mclust",
+  "cluster", "broom", "scales"
 )
 install.packages(setdiff(auto_pkgs, installed.packages()[, "Package"]))
 invisible(lapply(auto_pkgs, library, character.only = TRUE))
@@ -38,9 +33,7 @@ invisible(lapply(auto_pkgs, library, character.only = TRUE))
 ## 1.2 — Data pipeline
 
 All nine datasets are downloaded as `.parquet` files from
-[hub.huwise.com](https://hub.huwise.com) (the OpenDataSoft platform operated by
-the City of Lyon) and saved locally in `data_raw/`. Files already present are
-not re-downloaded.
+[hub.huwise.com](https://hub.huwise.com) (the OpenDataSoft platform operated by the City of Lyon) and saved locally in `data_raw/`. Files already present are not re-downloaded.
 
 The elections covered are:
 
@@ -50,13 +43,15 @@ The elections covered are:
 - **Municipal 2020** — rounds 1 and 2
 - **Presidential 2022** — rounds 1 and 2
 
-These elections were chosen because they span a period of eight years, cover
-all major French election types (presidential, legislative, municipal,
-European), and provide enough temporal depth to observe shifts in voting
-geography. Together they give 9 datasets totalling 294 polling stations.
+These elections were chosen for several reasons. First, the data are freely
+accessible on the City of Lyon's open data platform. Second, covering an
+eight-year span, they encompass all major election types organised in France
+under universal suffrage (presidential, legislative, municipal, European),
+which allows for comparisons both within and across election types. Together
+they yield 294 polling stations and nine observation matrices.
 
-Raw candidate names and party codes differ across datasets. All candidates are
-mapped to one of five unified political blocs:
+Raw candidate names and party codes differ across datasets. All candidates are mapped to one of five unified political blocs, following the French Ministry of the Interior's political affiliation records at the time of each election:
+
 
 | Bloc | Description |
 |------|-------------|
@@ -66,42 +61,106 @@ mapped to one of five unified political blocs:
 | `droite` | Right (e.g. Fillon, Pécresse, Dupont-Aignan) |
 | `extreme_droite` | Far right (e.g. Le Pen, Zemmour) |
 
-These categories were defined by consulting the French Ministry of the
-Interior's political affiliation records at the time of each election. The
-classification involves a degree of subjectivity: some candidates are difficult
-to categorise (e.g. Dupont-Aignan oscillates between *droite* and
-*extreme_droite*), and political affiliations shift over time. This limitation
-is acknowledged throughout the analysis.
+This classification inevitably involves a degree of subjectivity: some
+candidates are difficult to categorise unambiguously (for example,
+Dupont-Aignan oscillates between *droite* and *extreme_droite* depending on
+the election cycle), and political affiliations can shift over time. This
+limitation is acknowledged throughout the analysis, and caution should be
+exercised when interpreting results that hinge on the assignment of a specific
+candidate to a given bloc.
 
 For each election, raw vote counts are aggregated by polling station and bloc,
 then converted to **vote shares** (proportions summing to 1 per station). This
 produces one wide table per election, where each row is a polling station and
-each column is a bloc's vote share.
+each column is a bloc's vote share. These share matrices serve as the common
+input format for all subsequent analyses.
 
+```{r, echo=TRUE, eval=FALSE}
+source("R/01_download.R")
+source("R/02_clean_data.R")
+source("R/03_make_wide.R")
+```
 
 # 2 — Data Analysis
 
 ## 2.1 — PCA: Principal Component Analysis
 
-PCA was applied to measure the main dimensions of political variation across
-Lyon's polling stations. For each election, a matrix of vote shares
-(stations × blocs) was constructed, centred, and scaled before running PCA.
+PCA was applied to characterise the main dimensions of political variation
+across Lyon's polling stations. For each election, a matrix of vote shares
+(stations × blocs) was constructed, centred, and scaled before running PCA via
+`prcomp()`. Four visualisations were produced: a combined scree plot on all
+elections merged into a single matrix, a bar chart comparing the variance
+explained by the first two components across individual elections, a panel of
+correlation circles (one per election), and a series of biplots.
 
-In general, the first two principal components together explain between 60 and
-80% of the variance, consistently capturing two political dimensions:
+In general, the first two principal components together tend to explain a
+substantial share of total variance and capture two interpretable political
+dimensions. The first component broadly reflects the classical left–right axis,
+with `gauche` and `extreme_gauche` loading on one side and `droite` and
+`centre` loading on the other. The second component tends to separate moderate
+blocs from the extremes, although the precise structure varies across elections
+— a point examined further in the biplot analyses below.
 
-- **PC1 (~40% variance)** — the classic left–right spectrum.
-  `gauche` and `extreme_gauche` load negatively; `droite` and `centre` load
-  positively. This structure is stable across all five elections.
-- **PC2 (~26% variance)** — a moderate vs extreme axis.
-  `extreme_droite` loads negatively; `centre` (particularly in round 2 results)
-  loads positively.
+```{r}
+knitr::include_graphics("figures/P1_scree_combined.png.png")
+```
+The combined scree plot, computed on a merged matrix of all nine elections,
+shows how variance is distributed across principal components. The first few
+components capture the dominant sources of political variation in Lyon; the
+remaining components correspond to more residual patterns. The cumulative
+variance curve indicates how many components are required to account for a
+given proportion of total variation. This overview provides a reference
+baseline for the election-level analyses that follow.
 
-### 2.1.1 — Combined Scree Plot (all elections merged)# 2 — Data Analysis
+### 2.1.2 — PC1+PC2 Variance Explained per Election
 
+```{r}
+knitr::include_graphics("figures/P2_variance_per_election.png")
+```
 
+This chart compares the combined variance explained by the first two principal
+components across five elections (European 2014, Presidential 2017 R1,
+Legislative 2017 R1, Municipal 2020 R1, and Presidential 2022 R1). Elections
+where this two-component total is higher suggest that political variation among
+polling stations is more concentrated along two dominant axes — which may
+indicate a more clearly structured electoral geography. Conversely, elections
+where this total is lower may reflect a more fragmented political landscape in
+which no single axis captures the bulk of the variation.
 
+These differences across election types may reflect structural factors such as
+the number of competing lists, the presence or absence of runoff incentives,
+and the broader national political context at the time. However, caution is
+warranted in interpreting them causally, given that the number of blocs is held
+constant across elections by construction, which may itself affect the
+proportion of variance captured by the first two components.
 
+### 2.1.3 — Correlation Circles
+
+```{r}
+knitr::include_graphics("figures/Plot3.png")
+```
+The panel of correlation circles — one per election — displays the loadings of
+each political bloc on the first two principal components. The length of each
+arrow reflects how strongly that bloc contributes to the two-dimensional
+representation: a longer arrow indicates that the bloc's vote share is well
+explained by these two components. The angle between two arrows reflects their
+correlation on this plane: near-parallel arrows suggest positively correlated
+blocs; roughly orthogonal arrows suggest near-independence; opposing arrows
+suggest negative correlation.
+
+Across elections, the opposition between `gauche` and `droite` tends to be
+relatively stable, with arrows pointing in broadly consistent opposite
+directions. The positions of `centre` and `extreme_droite` appear more
+variable. In some elections, `centre` aligns more closely with `droite`; in
+others it occupies a more autonomous position. This variability is consistent
+with the changing political character of the centrist camp from 2017 onwards —
+notably the emergence of Macron's movement — and warrants interpretive
+prudence when comparing elections across years.
+
+It should also be noted that the `divers` category, which aggregates candidates
+not mapped to any of the five main blocs, may introduce some noise into the
+loading structure and should be treated as a residual category rather than a
+coherent political signal.
 
 ```{r}
 # ===================
@@ -463,7 +522,10 @@ ggplot(variance_df, aes(x = reorder(PC, -variance), y = variance)) +
   ) +
   theme_minimal(base_size = 12) +
   theme(plot.title = element_text(face = "bold"))
-#meaning of PC1-PC2 
+  
+ggsave("figures/P1_scree_combined.png", width = 10, height = 6, dpi = 150)
+  
+#meaning of PC1-PC2?
 
 #==============================================
 
@@ -535,6 +597,8 @@ ggplot(variance_long, aes(x = election, y = variance, fill = component)) +
   theme_minimal(base_size = 12) +
   theme(plot.title = element_text(face = "bold"))
 
+ggsave("figures/P2_variance_per_election.png", width = 10, height = 6, dpi = 150)
+
 # Plot 3: Correlation circles for all elections (2×3 grid)
 # Check if variable directions are consistent across elections
 
@@ -603,8 +667,8 @@ circles_comparison <- ggplot(all_circles, aes(x = PC1, y = PC2, color = nuance))
         legend.position = "bottom",
         strip.text    = element_text(face = "bold"))
 
-print(circles_comparison)
-# ggsave("plot3_circles_comparison.png", width = 20, height = 13, dpi = 150)
+ggsave("figures/Plot3.png", plot = circles_comparison, width = 20, height = 13, dpi = 150)
+
 
 # ── Biplot───────────────────────────
 # PLOT 4/5/6/7— Biplots (one per election, 5 total)
@@ -689,8 +753,8 @@ make_biplot <- function(pca_result, wide_df, title, filename) {
           legend.position = "right")
 
   print(p)
- # ggsave(paste0("figures/", filename, ".png"),
- #        plot = p, width = 11, height = 8, dpi = 150)
+ ggsave(paste0("figures/", filename, ".png"),
+        plot = p, width = 11, height = 8, dpi = 150)
   #cat(filename, "\n")
 }
 
