@@ -373,7 +373,7 @@ all_elections_clean <- na.omit(all_elections)
 
 PCA was applied to characterise the main dimensions of political variation across Lyon's polling stations. For each election, a matrix of vote shares (stations × blocs) was constructed, centred, and scaled before running PCA via `prcomp()`. Four visualisations were produced: a combined scree plot on all elections merged into a single matrix, a bar chart comparing the variance explained by the first two components across individual elections, a panel of correlation circles (one per election), and a series of biplots.
 
-In general, the first two principal components together tend to explain a substantial share of total variance and capture two interpretable political dimensions. The first component broadly reflects the classical left–right axis, with `gauche` and `extreme_gauche` loading on one side and `droite` and `centre` loading on the other. The second component tends to separate moderate blocs from the extremes, although the precise structure varies across elections, a point examined further in the biplot analyses below.
+PC1 and PC2 together account for approximately 66% of total variance on the merged matrix; around five components are required to reach the 80% threshold. The first two components therefore capture the dominant axes of political variation, but do not represent the majority of total variance. The first component broadly reflects the classical left–right axis, with `gauche` and `extreme_gauche` loading on one side and `droite` and `centre` loading on the other. The second component tends to separate moderate blocs from the extremes, although the precise structure varies across elections, a point examined further in the biplot analyses below.
 
 ```{r}
 #===============================================================================
@@ -505,8 +505,7 @@ ggsave("figures/P2_variance_per_election.png", plot = variance_explained, width 
 knitr::include_graphics("figures/P2_variance_per_election.png")
 ```
 
-This chart compares the combined variance explained by the first two principal components across five elections (European 2014, Presidential 2017 R1, Legislative 2017 R1, Municipal 2020 R1, and Presidential 2022 R1). Elections where this two-component total is higher suggest that political variation among polling stations is more concentrated along two dominant axes — which may
-indicate a more clearly structured electoral geography. Conversely, elections where this total is lower may reflect a more fragmented political landscape in which no single axis captures the bulk of the variation.
+This chart compares the combined variance explained by the first two principal components across five elections (European 2014, Presidential 2017 R1, Legislative 2017 R1, Municipal 2020 R1, and Presidential 2022 R1). Pres 2022 R1 scores highest (82.4%), indicating that political variation in that election is most concentrated along two dominant axes. Leg 2017 R1 scores lowest (70.9%), reflecting a more fragmented landscape — consistent with the greater role of local candidate effects and constituency-level alliances in legislative elections. Elections where this two-component total is higher suggest a more clearly structured electoral geography; elections where it is lower suggest that variation is distributed across more dimensions.
 
 These differences across election types may reflect structural factors such as the number of competing lists, the presence or absence of runoff incentives, and the broader national political context at the time. However, caution is warranted in interpreting them causally, given that the number of blocs is held constant across elections by construction, which may itself affect the proportion of variance captured by the first two components.
 
@@ -592,10 +591,10 @@ knitr::include_graphics("figures/Plot3.png")
 The panel of correlation circles — one per election — displays the loadings of each political bloc on the first two principal components. The length of each arrow reflects how strongly that bloc contributes to the two-dimensional representation: a longer arrow indicates that the bloc's vote share is well explained by these two components. The angle between two arrows reflects their
 correlation on this plane: near-parallel arrows suggest positively correlated blocs; roughly orthogonal arrows suggest near-independence; opposing arrows suggest negative correlation.
 
-Across elections, the opposition between `gauche` and `droite` tends to be relatively stable, with arrows pointing in broadly consistent opposite directions. The positions of `centre` and `extreme_droite` appear more variable. In some elections, `centre` aligns more closely with `droite`; in others it occupies a more autonomous position. This variability is consistent
+Across elections, the opposition between `gauche` and `droite` tends to be relatively stable in substantive terms. Note, however, that PCA loadings are sign-arbitrary: the direction of each axis can flip between elections without any change in meaning. Apparent reversals — such as `gauche` pointing right in one election and left in another — reflect axis sign flips rather than genuine structural change, and should be interpreted accordingly. The positions of `centre` and `extreme_droite` appear more variable. In some elections, `centre` aligns more closely with `droite`; in others it occupies a more autonomous position. This variability is consistent
 with the changing political character of the centrist camp from 2017 onwards, notably the emergence of Macron's movement — and warrants interpretive prudence when comparing elections across years.
 
-It should also be noted that the `divers` category, which aggregates candidates not mapped to any of the five main blocs, may introduce some noise into theloading structure and should be treated as a residual category rather than a coherent political signal.
+It should also be noted that the `divers` category, present in the European elections only, aggregates candidates not mapped to any of the five main blocs. It may introduce some noise into the loading structure of those elections specifically and should be treated as a residual category rather than a coherent political signal.
 
 ### 2.1.4 — Biplots
 
@@ -725,7 +724,7 @@ knitr::include_graphics("figures/biplot_pres22.png")
 
 In each biplot, blue dots represent individual polling stations projected onto the first two principal components; coloured arrows represent the political blocs. Stations located far from the origin along an arrow's direction tend to have a comparatively high vote share for that bloc. The distribution of stations in biplot space thus reveals whether Lyon's neighbourhoods cluster politically, and whether this spatial structure changes across elections.
 
-Several observations can be drawn from this series. First, the overall spread of polling stations varies between elections: a more dispersed cloud suggests greater neighbourhood-level heterogeneity, while a more concentrated cloud suggests greater homogeneity. Second, the relative positions of the bloc arrows change across elections, reflecting broader national political dynamics: the fragmentation of the right in 2017, the progressive consolidation of left-wing votes in certain years, and the repositioning of the centrist bloc from 2017 onwards. These observations are descriptive features of the data and should not be read as causal statements about voter behaviour.
+Several observations can be drawn from this series. First, the overall spread of polling stations varies between elections: a more dispersed cloud suggests greater neighbourhood-level heterogeneity, while a more concentrated cloud suggests greater homogeneity. Second, the relative positions of the bloc arrows change across elections, reflecting broader national political dynamics: the fragmentation of the right in 2017, the progressive consolidation of left-wing votes in certain years, and the repositioning of the centrist bloc from 2017 onwards. A notable feature of the Législatives 2017 R1 biplot is that `extreme_gauche` and `extreme_droite` arrows point in nearly the same direction — a pattern not observed in any other election. This suggests that in the 2017 legislative election, the neighbourhoods with the highest far-left vote shares also tended to have relatively higher far-right shares, possibly reflecting a shared geography of protest voting in certain working-class areas. This observation is descriptive and does not imply any ideological equivalence between the two blocs.
 
 ## 2.2 — CCA: Canonical Correlation Analysis
 
@@ -985,7 +984,7 @@ cca_summary <- tibble::tibble(
 print(cca_summary)
 ```
 
-The summary table collects the first canonical correlations for all five comparisons. These values should be interpreted comparatively rather than in absolute terms: what matters is the relative ordering and the degree to which within-election or within-year comparisons yield higher correlations than across-year or across-type ones. Any such ordering would suggest that election format and temporal distance both contribute to geographic restructuring, though causal inferences from this cross sectional comparison would require additional evidence.
+The summary table collects the first and second canonical correlations for all five comparisons. These values should be interpreted comparatively. Beyond r₁, the second canonical correlation r₂ provides additional information about how much of the secondary geographic structure is preserved. The comparison between Presidential 2017 R1 and Législatives 2017 R1 is notable in that both r₁ (0.956) and r₂ (0.933) are very high, indicating that not only the primary but also the secondary axis of political variation is fully preserved across election types within the same year — the most complete geographic stability observed in the dataset. By contrast, the Municipal 2020 R1 vs R2 comparison shows r₁ = 0.895 but r₂ = 0.495 only, indicating that while the primary geographic axis is preserved between rounds, the secondary structure is substantially reorganised — likely reflecting the consolidation of lists between rounds.
 
 ## 2.3 — Clustering
 
@@ -1167,8 +1166,9 @@ ggsave("figures/cluster_profile_heatmap.png", plot = plot_cluster_profile(km_k4,
 knitr::include_graphics("figures/cluster_profile_heatmap.png")
 ```
 
-The heatmap displays the mean vote share per political bloc and per cluster, computed from the Presidential 2022 R1 data. This election was selected for the profile characterisation because it is the most recent in the clustering matrix and provides five well-distributed bloc categories. Each cluster's profile can be read as a stylised description of the type of neighbourhood it captures. These profiles should be interpreted as averages: within-cluster variation is
-not displayed and may be substantial in some cases.
+The heatmap displays the mean vote share per political bloc and per cluster, computed from the Presidential 2022 R1 data. This election was selected for the profile characterisation because it is the most recent in the clustering matrix and provides five well-distributed bloc categories. 
+Each cluster's profile can be read as a stylised description of the type of neighbourhood it captures. 
+Cluster 2 is predominantly left-leaning, with `gauche` averaging 46.6% and `centre` 29.7%; Cluster 1 is more centrist, with `centre` dominating at 40.2% and `gauche` at 28.2%. Notably, `extreme_gauche` shares are similarly low in both clusters (2.0% and 2.9% respectively), indicating that far-left support does not contribute meaningfully to the main axis of differentiation between the two neighbourhood types. These profiles should be interpreted as averages: within-cluster variation is not displayed and may be substantial in some cases.
 
 ### 2.3.4 — Hierarchical Clustering: Dendrograms
 
@@ -1215,7 +1215,10 @@ knitr::include_graphics("figures/dendrogram_average.png")
 knitr::include_graphics("figures/dendrogram_manhattan_ward.png")
 ```
 
-Four hierarchical clustering solutions were computed: Euclidean distance with Ward, complete, and average linkage, and Manhattan distance with Ward linkage. The dendrograms illustrate the hierarchical merging process; the red lines mark the partition at *k* clusters. Ward linkage with Euclidean distance tends to produce more compact and roughly equal-sized clusters; complete linkage produces more balanced but sometimes looser clusters; average linkage is sensitive to chaining effects in elongated data structures; Manhattan distance provides a degree of robustness to outliers in high-dimensional spaces. Comparing the four dendrograms visually gives a first impression of whether the broad structure of the partition is robust to specification choices.
+Four hierarchical clustering solutions were computed: Euclidean distance with Ward, complete, and average linkage, and Manhattan distance with Ward linkage. 
+The dendrograms illustrate the hierarchical merging process; the red lines mark the partition at *k* clusters. Ward linkage with Euclidean distance tends to produce more compact and roughly equal-sized clusters; complete linkage produces more balanced but sometimes looser clusters; average linkage produces a severely degenerate partition in this dataset due to chaining: almost all polling stations are absorbed into a single cluster, rendering this solution uninformative and excluding it from substantive comparison. 
+Manhattan distance provides a degree of robustness to outliers in high-dimensional spaces. 
+Three of the four methods — Ward, complete, and Manhattan+Ward linkage — produce broadly consistent two-cluster solutions, providing reassurance that the k=2 partition is not an artefact of a particular algorithm. Average linkage produces a severely degenerate partition due to chaining, with almost all stations collapsed into a single cluster; this solution is uninformative and excluded from substantive comparison
 
 ### 2.3.5 — ARI Comparison Across Methods
 
@@ -1256,8 +1259,7 @@ objective of the project.
 
 Two additional datasets were acquired for this section: the European 2024 results and the Legislative 2024 R1 results, both filtered to Lyon (commune code 69123) from CSV files published by the French Ministry of the Interior. The nuance codes in these datasets follow the official classification system used in the earlier elections and were mapped to the same five-bloc scheme. The European 2024 results serve as an additional explanatory variable; the Legislative 2024 R1 results are the response variable.
 
-The regression dataset was constructed by joining all wide share tables on polling station identifier (`bureau`). The cluster label from the k-means solution (Section 2.3) was also joined as a categorical explanatory variable, providing a discrete summary of each station's historical political profile. After removing stations with missing values across any election, the resulting
-dataset contains only stations present in all nine historical elections plus the two 2024 datasets.
+The regression dataset was constructed by joining all wide share tables on polling station identifier (`bureau`). The cluster label from the k=2 k-means solution (Section 2.3) was joined as a two-level categorical variable (C1 and C2), with C1 serving as the reference category. This variable provides a discrete summary of each station's historical political profile — left-leaning (C2) versus centrist (C1).
 
 ### 2.4.2 — Model specification
 
@@ -1547,7 +1549,7 @@ ggsave("figures/regression_r2.png", plot = regression_r2_plot, width = 9, height
 knitr::include_graphics("figures/regression_r2.png")
 ```
 
-The bar chart displays the R² for each of the five bloc-specific models. In general, blocs whose vote share is geographically stable across elections, meaning that the same areas tend to vote consistently for the same bloc which are expected to yield higher R² values. Blocs that experienced more substantial geographic restructuring between 2022 and 2024 are expected to yield lower values.
+The bar chart displays the R² for each of the five bloc-specific models. In general, blocs whose vote share is geographically stable across elections, meaning that the same areas tend to vote consistently for the same bloc which are expected to yield higher R² values. Blocs that experienced more substantial geographic restructuring between 2022 and 2024 are expected to yield lower values. `Gauche` achieves the best fit (R² = 0.966), followed by `extreme_droite` (0.935), `centre` (0.874), and `droite` (0.829). `Extreme_gauche` is a clear outlier at R² = 0.437, the only bloc for which the model fit is classified as moderate rather than excellent, reflecting the greater volatility of far-left geographic support across the study period.
 
 These figures should be interpreted cautiously. A high R² indicates good in-sample fit but does not guarantee out-of-sample accuracy; the ratio of predictors to observations means that some degree of over-fitting is plausible, and adjusted R² values — also reported — provide a partial correction.
 
@@ -1605,10 +1607,7 @@ lapply(reg_models, plot_coefficients) |> invisible()
 
 ```
 
-```{r}
-knitr::include_graphics("figures/coef_extreme_gauche.png")
-```
-
+For each bloc, the coefficient plot shows the estimated regression coefficients and their 95% confidence intervals, with statistically significant coefficients (p < 0.05) highlighted in blue. The most recent elections carry the largest predictive weight for most blocs, but the pattern varies substantially across blocs. 
 ```{r}
 knitr::include_graphics("figures/coef_gauche.png")
 ```
@@ -1618,17 +1617,22 @@ knitr::include_graphics("figures/coef_centre.png")
 ```
 
 ```{r}
-knitr::include_graphics("figures/coef_droite.png")
-```
-
-```{r}
 knitr::include_graphics("figures/coef_extreme_droite.png")
 ```
 
-For each bloc, the coefficient plot shows the estimated regression coefficients and their 95% confidence intervals, with statistically significant coefficients (p < 0.05) highlighted in blue. The most recent elections, particularly Presidential 2022 R1 and European 2024 may carry the largest predictive weight for the 2024 legislative results, given their temporal proximity.
-Earlier elections may have coefficients that are not statistically distinguishable from zero, reflecting the possibility that the geographic structure of political support can shift substantially over the study period.
+For gauche, centre, and extreme_droite, Presidential 2022 R1 is the dominant predictor with a large and statistically significant coefficient; European 2024 adds a smaller but significant contribution.
+```{r}
+knitr::include_graphics("figures/coef_droite.png")
+```
 
-Cluster fixed effects, when statistically significant, indicate that stations in a given cluster tend to have systematically higher or lower vote shares for a bloc, after controlling for their historical voting trajectories. These effects may capture neighbourhood-level characteristics not fully explained by the bloc-share predictors alone.
+For droite, by contrast, European 2024 is the dominant predictor while Presidential 2022 R1 is not statistically significant, suggesting that the traditional right's geographic support underwent substantial restructuring between 2022 and 2024. 
+
+```{r}
+knitr::include_graphics("figures/coef_extreme_gauche.png")
+```
+
+For extreme_gauche, the strongest predictor is Presidential 2017 R1, and the coefficient on Législatives 2017 R1 is negative and significant, indicating that far-left geographic support changed direction inconsistently across elections, which is consistent with the low R² of 0.437 for this bloc. 
+Earlier elections may have coefficients not statistically distinguishable from zero for most blocs, reflecting genuine geographic restructuring over the study period.
 
 ### 2.4.5 — Summary table and limitations
 
