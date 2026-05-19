@@ -740,17 +740,17 @@ Across all five elections, stations from the 1st arrondissement (01xx) consisten
 
 ## 2.2 — CCA: Canonical Correlation Analysis
 
-CCA was used to measure the extent to which the voting geographies of two elections are linearly related, after removing the linear constraint that vote shares sum to 1 (by dropping the last column of each share matrix). The first canonical correlation *r*₁ represents the maximum linear association between a weighted combination of blocs in one election and a weighted combination in the other: values close to 1 suggest strong geographic stability; values further from 1 suggest more substantial restructuring between the two elections.
+CCA was used to measure the extent to which the voting geographies of two elections are linearly related. Before running CCA, the last column of each share matrix was dropped to remove the linear constraint that vote shares sum to 1. The first canonical correlation *r*₁ represents the maximum linear association between a weighted combination of blocs in one election and a weighted combination in the other. Values close to 1 suggest strong geographic stability between the two elections. Lower values suggest more substantial restructuring.
 
 Five comparisons were selected:
 
-1.  Municipal 2020 R1 vs. R2 : within-election round consistency
+1.  Municipal 2020 R1 vs. R2 : within-election round consistency. Note that R2 is included here because CCA only requires the reduced bloc matrix, which remains valid with two rounds even when the number of competing lists differs.
 2.  Presidential 2017 R1 vs. Presidential 2022 R1 : stability across two presidential elections
 3.  Presidential 2017 R1 vs. Legislative 2017 R1 : stability across election types within the same year
 4.  European 2014 vs. Presidential 2017 R1 : cross-year, cross-type comparison
 5.  European 2014 vs. Municipal 2020 R1 : a longer temporal horizon comparing two list-based elections
 
-The CCA summary table records *r*₁ and the number of common polling stations for each comparison. The correlation circle plots display, for each election in a pair, the correlations of each political bloc's vote share with the first two canonical dimensions — analogous to loadings in a PCA biplot, but reflecting the shared structure between two election matrices rather than the internal structure of a single one.
+The CCA summary table records *r*₁ and the number of common polling stations for each comparison. The correlation circle plots show, for each election in a pair, how strongly each bloc's vote share correlates with the first two canonical dimensions. Unlike PCA correlation circles, which reflect the internal structure of a single election matrix, these reflect the shared structure between two matrices.
 
 ```{r}
 #========================
@@ -923,7 +923,8 @@ cca_eu14_mun20   <- run_cca(sm_eu14,    sm_mun20r1, "eu14",    "mun20r1")
 knitr::include_graphics("figures/cca_mun20r1_vs_mun20r2.png")
 ```
 
-Comparing the two rounds of the same election provides a natural baseline for what a high canonical correlation looks like in this dataset. The two rounds share the same candidates and the same institutional context; the main difference is the shift from a multi-list first round to a more concentrated runoff. To the extent that the geographic distribution of political preferences is stable between rounds, the bloc arrows should maintain their directions and relative positions across the two panels of this plot. Any divergence is likely attributable to differential abstention and tactical voting between rounds, rather than a genuine change in underlying political preferences.
+The first canonical correlation between Mun 2020 R1 and R2 is r1=0.895, indicating strong geographic stability between the two rounds. The second canonical correlation is much lower (r2=0.495), suggesting that the shared structure between rounds is largely captured by a single dimension.
+The correlation circles show that in R2, only three blocs are present: `gauche`, `droite`, and `centre`. The `extreme_gauche` and `extreme_droite` arrows disappear, consistent with the consolidation of lists between rounds. Despite this reduction, the directions of gauche, droite, and `centre` remain broadly consistent across the two panels. This confirms that the neighbourhood-level geographic structure of political preferences is preserved between rounds, even as the number of competing lists decreases.
 
 ### 2.2.2 — Presidential 2017 R1 vs. Presidential 2022 R1
 
@@ -1657,3 +1658,4 @@ The regression analysis provides a data-driven characterisation of the geographi
 ```
 
 ## 
+
