@@ -28,7 +28,7 @@ invisible(lapply(auto_pkgs, library, character.only = TRUE))
 
 ## 1.2 — Data pipeline
 
-All nine datasets are downloaded as `.parquet` files from [hub.huwise.com](https://hub.huwise.com) (the OpenDataSoft platform operated by the City of Lyon) and saved locally in `data_raw/`. Files already present are not re-downloaded.
+All nine datasets are downloaded as `.parquet` files from [hub.huwise.com](https://hub.huwise.com) and saved locally in `data_raw/`. Files already present are not re-downloaded.
 
 The elections covered are:
 
